@@ -112,8 +112,43 @@ std::list<ASTNode> create_ast(std::list<std::string>& tokens,
   return ret;
 }
 
-void eval_tree(std::list<ASTNode> ast) {
+void eval_tree(std::list<ASTNode>::iterator node) {
   // TODO Evaluaute AST here
+  if (node->type == ASTNodeType::List) {
+    if (node->list.front().type == ASTNodeType::Symbol) {
+      auto fun = node->list.front().repr;
+      if (fun == "+") {
+        auto it = node->list.begin();
+        it++;
+        float sum = 0;
+        bool is_all_int = true;
+        while (it != node->list.end()) {
+          eval_tree(it);
+          switch (it->type) {
+            case ASTNodeType::Integer:
+              sum += it->integer;
+              break;
+            case ASTNodeType::Decimal:
+              sum += it->decimal;
+              is_all_int = false;
+              break;
+            default:
+              throw ParseError("Unsuitable operands to +");
+          }
+          it++;
+        }
+        if (is_all_int) {
+          node->type = ASTNodeType::Integer;
+          node->integer = (int)(sum);
+          node->repr = std::to_string((int)sum);
+        } else {
+          node->type = ASTNodeType::Decimal;
+          node->decimal = sum;
+          node->repr = std::to_string(sum);
+        }
+      }
+    }
+  }
 }
 
 std::string interpret_line_internal(std::string str) {
@@ -125,7 +160,7 @@ std::string interpret_line_internal(std::string str) {
   if (ast.size() != 1)
     throw ParseError("Contains more than one node at the base");
 
-  eval_tree(ast);
+  eval_tree(ast.begin());
 
   return get_repr(ast);
 }
