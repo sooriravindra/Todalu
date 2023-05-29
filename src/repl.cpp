@@ -11,7 +11,14 @@ int main(int argc, char** argv) {
     // TODO Read file and interpret each line
   } else {
     while ((line = linenoise("todalu> ")) != nullptr) {
-      std::cout << interpret_line(line) << std::endl;
+      try {
+        std::cout << interpret_line(line) << std::endl;
+      } catch (ParseError& e) {
+        std::cerr << "Parse error: " << e.what() << std::endl;
+      } catch (std::exception& e) {
+        std::cerr << "Unknown error when interpreting line : " << e.what()
+                  << std::endl;
+      }
       linenoiseFree(line);
     }
   }
