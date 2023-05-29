@@ -1,10 +1,18 @@
 #include <iostream>
+
+#include "interpret.h"
 #include "linenoise.h"
-using namespace std;
-int main() {
+
+int main(int argc, char** argv) {
   char* line;
-  while ((line = linenoise("\n> ")) != nullptr) {
-    cout << line;
-    linenoiseFree(line); 
+  bool interactive = (argc == 1);
+
+  if (not interactive) {
+    // TODO Read file and interpret each line
+  } else {
+    while ((line = linenoise("todalu> ")) != nullptr) {
+      std::cout << interpret_line(line) << std::endl;
+      linenoiseFree(line);
+    }
   }
 }
