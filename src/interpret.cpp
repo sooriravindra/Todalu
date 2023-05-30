@@ -289,10 +289,35 @@ void eval_tree(std::list<ASTNode>::iterator node) {
       eval_tree(std::next(node->list.begin()));
       gEnv[lambda.list.front().repr].push_front(
           *(std::next(node->list.begin())));
+    } else if (lambda.list.front().type == ASTNodeType::List) {
+      auto it = lambda.list.front().list.begin();
+      auto it2 = std::next(node->list.begin());
+      while (it != lambda.list.front().list.end()) {
+        eval_tree(it2);
+        gEnv[it->repr].push_front(*it2);
+        it++;
+        it2++;
+      }
     }
 
     auto tmp = lambda.list;
-    eval_tree(std::next(tmp.begin()));
+    try {
+      eval_tree(std::next(tmp.begin()));
+    } catch (...) {
+      if (lambda.list.front().type == ASTNodeType::Symbol) {
+        gEnv[lambda.list.front().repr].pop_front();
+        if (gEnv[lambda.list.front().repr].size() == 0)
+          gEnv.erase(lambda.list.front().repr);
+      } else if (lambda.list.front().type == ASTNodeType::List) {
+        auto it = lambda.list.front().list.begin();
+        while (it != lambda.list.front().list.end()) {
+          gEnv[it->repr].pop_front();
+          if (gEnv[it->repr].size() == 0) gEnv.erase(it->repr);
+          it++;
+        }
+      }
+      throw;
+    }
     node->type = tmp.back().type;
     node->integer = tmp.back().integer;
     node->decimal = tmp.back().decimal;
@@ -301,6 +326,15 @@ void eval_tree(std::list<ASTNode>::iterator node) {
 
     if (lambda.list.front().type == ASTNodeType::Symbol) {
       gEnv[lambda.list.front().repr].pop_front();
+      if (gEnv[lambda.list.front().repr].size() == 0)
+        gEnv.erase(lambda.list.front().repr);
+    } else if (lambda.list.front().type == ASTNodeType::List) {
+      auto it = lambda.list.front().list.begin();
+      while (it != lambda.list.front().list.end()) {
+        gEnv[it->repr].pop_front();
+        if (gEnv[it->repr].size() == 0) gEnv.erase(it->repr);
+        it++;
+      }
     }
 
   } else if (node->type == ASTNodeType::Symbol) {
