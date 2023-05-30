@@ -5,7 +5,7 @@
 #include <regex>
 #include <string>
 
-enum class ASTNodeType { Integer, Decimal, Symbol, List };
+enum class ASTNodeType { Integer, Decimal, Symbol, List, Lambda };
 
 typedef struct _ASTNode {
   ASTNodeType type;
@@ -15,6 +15,8 @@ typedef struct _ASTNode {
   float decimal;
   std::list<struct _ASTNode> list;
 } ASTNode;
+
+std::map<std::string, std::list<ASTNode>> gEnv;
 
 std::list<std::string> tokenizer(std::string& str) {
   str = std::regex_replace(str, std::regex("\\("), " ( ");
@@ -57,16 +59,20 @@ std::string get_repr(std::list<ASTNode>& ast) {
   auto it = ast.begin();
   while (it != ast.end()) {
     switch (it->type) {
-      case ASTNodeType::Integer:
-      case ASTNodeType::Decimal:
-      case ASTNodeType::Symbol:
-        res += it->repr;
-        res += " ";
-        break;
-      case ASTNodeType::List:
-        res += "( ";
-        res += get_repr(it->list);
-        res += ") ";
+    case ASTNodeType::Integer:
+    case ASTNodeType::Decimal:
+    case ASTNodeType::Symbol:
+      res += it->repr;
+      res += " ";
+      break;
+    case ASTNodeType::List:
+      res += "( ";
+      res += get_repr(it->list);
+      res += ") ";
+      break;
+    case ASTNodeType::Lambda:
+      res += "$lambda$ ";
+      break;
     }
     it++;
   }
@@ -117,29 +123,29 @@ void operate_on_node(std::list<ASTNode>::iterator node, char op, float& acc,
                      bool& is_all_int) {
   auto operation = [](float a, float b, char op) {
     switch (op) {
-      case '+':
-        return a + b;
-      case '-':
-        return a - b;
-      case '*':
-        return a * b;
-      case '/':
-        return a / b;
-      default:
-        throw std::runtime_error("Invalid operation");
+    case '+':
+      return a + b;
+    case '-':
+      return a - b;
+    case '*':
+      return a * b;
+    case '/':
+      return a / b;
+    default:
+      throw std::runtime_error("Invalid operation");
     }
   };
   eval_tree(node);
   switch (node->type) {
-    case ASTNodeType::Integer:
-      acc = operation(acc, node->integer, op);
-      break;
-    case ASTNodeType::Decimal:
-      acc = operation(acc, node->decimal, op);
-      is_all_int = false;
-      break;
-    default:
-      throw ParseError("Unsuitable operands to +");
+  case ASTNodeType::Integer:
+    acc = operation(acc, node->integer, op);
+    break;
+  case ASTNodeType::Decimal:
+    acc = operation(acc, node->decimal, op);
+    is_all_int = false;
+    break;
+  default:
+    throw ParseError("Unsuitable operands to +");
   }
 }
 
@@ -179,7 +185,9 @@ void eval_tree(std::list<ASTNode>::iterator node) {
           node->repr = std::to_string(acc);
         }
         // TODO clear list
-      } else if (fun == "quote") {
+        return;
+      }
+      if (fun == "quote") {
         node->list.pop_front();
         if (node->list.size() != 1)
           throw ParseError("quote expects one argument");
@@ -190,7 +198,9 @@ void eval_tree(std::list<ASTNode>::iterator node) {
         auto x = node->list.front().list;
         // TODO free memory here
         node->list = x;
-      } else if (fun == "car") {
+        return;
+      }
+      if (fun == "car") {
         node->list.pop_front();
         if (node->list.size() != 1)
           throw ParseError("car expects one argument");
@@ -204,7 +214,9 @@ void eval_tree(std::list<ASTNode>::iterator node) {
         auto x = node->list.front().list.front().list;
         // TODO free memory here
         node->list = x;
-      } else if (fun == "cdr") {
+        return;
+      }
+      if (fun == "cdr") {
         node->list.pop_front();
         if (node->list.size() != 1)
           throw ParseError("car expects one argument");
@@ -219,7 +231,64 @@ void eval_tree(std::list<ASTNode>::iterator node) {
         auto x = node->list.front().list;
         // TODO free memory here
         node->list = x;
+        return;
       }
+      if (fun == "lambda") {
+        if (node->list.size() != 3) throw ParseError("lambda syntax incorrect");
+        node->type = ASTNodeType::Lambda;
+        node->integer = 0;
+        node->decimal = 0;
+        node->repr = "$lambda$";
+        node->list.pop_front();
+
+        if (node->list.front().type == ASTNodeType::List) {
+          auto l = node->list.front().list.begin();
+          while (l != node->list.front().list.end()) {
+            if (l->type != ASTNodeType::Symbol)
+              throw ParseError("lambda argument list has non-symbol");
+            l++;
+          }
+        } else if (node->list.front().type != ASTNodeType::Symbol) {
+          throw ParseError("lambda argument has non-symbol");
+        }
+        return;
+      }
+      if (fun == "def") {
+        node->list.pop_front();
+        if (node->list.size() != 2)
+          throw ParseError("def expects two arguments");
+        if (node->list.front().type != ASTNodeType::Symbol)
+          throw ParseError("def expects first argument to be symbol");
+        auto key = node->list.begin();
+        auto value = std::next(key);
+        eval_tree(value);
+        gEnv[key->repr].push_front(*value);
+        node->type = value->type;
+        node->integer = value->integer;
+        node->decimal = value->decimal;
+        node->repr = value->repr;
+        auto l = value->list;
+        node->list = l;
+        return;
+      }
+    }
+    // Try this as lambda
+    eval_tree(node->list.begin());
+    if (node->list.front().type != ASTNodeType::Lambda)
+      throw ParseError(std::string("Invalid function : ") +
+                       node->list.front().repr);
+
+  } else if (node->type == ASTNodeType::Symbol) {
+    auto x = gEnv.find(node->repr);
+    if (x != gEnv.end()) {
+      auto y = x->second.front();
+      node->type = y.type;
+      node->decimal = y.decimal;
+      node->integer = y.integer;
+      node->list = y.list;
+      node->repr = y.repr;
+    } else {
+      throw ParseError(std::string("Undefined symbol : ") + node->repr);
     }
   }
 }
@@ -239,6 +308,5 @@ std::string interpret_line_internal(std::string str) {
 }
 
 std::string interpret_line(std::string str) {
-  auto res = interpret_line_internal(str);
-  return res + "\n";
+  return interpret_line_internal(str);
 }
