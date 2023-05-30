@@ -115,6 +115,7 @@ std::list<ASTNode> create_ast(std::list<std::string>& tokens,
       ret.push_back(*node);
     }
   }
+  if (closing_paren_allow) throw ParseError("Unmatched '('");
   return ret;
 }
 
