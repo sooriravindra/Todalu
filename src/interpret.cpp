@@ -201,7 +201,7 @@ void eval_tree(std::list<ASTNode>::iterator node) {
             ((node->list.front().type == ASTNodeType::Integer &&
               node->list.front().integer == node->list.back().integer) ||
              (node->list.front().type == ASTNodeType::Decimal &&
-              node->list.front().decimal == node->list.front().decimal)))
+              node->list.front().decimal == node->list.back().decimal)))
           res = 1;
 
         node->type = ASTNodeType::Integer;
@@ -313,6 +313,24 @@ void eval_tree(std::list<ASTNode>::iterator node) {
         auto l = node->list.front().list;
         node->list.front().list.clear();
         node->list = l;
+        return;
+      }
+      if (fun == "not") {
+        node->list.pop_front();
+        if (node->list.size() != 1)
+          throw ParseError("not expects one argument");
+        eval_tree(node->list.begin());
+        int res = 0;
+        if ((node->list.front().type == ASTNodeType::Integer &&
+             node->list.front().integer == 0) ||
+            (node->list.front().type == ASTNodeType::Decimal &&
+             node->list.front().decimal == 0))
+          res = 1;
+        node->type = ASTNodeType::Integer;
+        node->decimal = res;
+        node->integer = res;
+        node->repr = std::to_string(res);
+        node->list.clear();
         return;
       }
     }
