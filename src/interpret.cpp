@@ -112,39 +112,70 @@ std::list<ASTNode> create_ast(std::list<std::string>& tokens,
   return ret;
 }
 
+void eval_tree(std::list<ASTNode>::iterator node);
+void eval_node(std::list<ASTNode>::iterator node, char op, float& acc,
+               bool& is_all_int) {
+  auto operation = [](float a, float b, char op) {
+    switch (op) {
+      case '+':
+        return a + b;
+      case '-':
+        return a - b;
+      case '*':
+        return a * b;
+      case '/':
+        return a / b;
+      default:
+        throw std::runtime_error("Invalid operation");
+    }
+  };
+  eval_tree(node);
+  switch (node->type) {
+    case ASTNodeType::Integer:
+      acc = operation(acc, node->integer, op);
+      break;
+    case ASTNodeType::Decimal:
+      acc = operation(acc, node->decimal, op);
+      is_all_int = false;
+      break;
+    default:
+      throw ParseError("Unsuitable operands to +");
+  }
+}
+
 void eval_tree(std::list<ASTNode>::iterator node) {
   // TODO Evaluaute AST here
   if (node->type == ASTNodeType::List) {
     if (node->list.front().type == ASTNodeType::Symbol) {
       auto fun = node->list.front().repr;
-      if (fun == "+") {
+      if (fun.length() == 1) {
         auto it = node->list.begin();
+
+        if (node->list.size() < 3) throw ParseError("Needs atleast 2 operands");
+
         it++;
-        float sum = 0;
+
+        float acc = (fun[0] == '*') ? 1 : 0;
         bool is_all_int = true;
-        while (it != node->list.end()) {
-          eval_tree(it);
-          switch (it->type) {
-            case ASTNodeType::Integer:
-              sum += it->integer;
-              break;
-            case ASTNodeType::Decimal:
-              sum += it->decimal;
-              is_all_int = false;
-              break;
-            default:
-              throw ParseError("Unsuitable operands to +");
-          }
+
+        if (fun[0] == '-' || fun[0] == '/') {
+          eval_node(it, '+', acc, is_all_int);
           it++;
         }
+
+        while (it != node->list.end()) {
+          eval_node(it, fun[0], acc, is_all_int);
+          it++;
+        }
+
         if (is_all_int) {
           node->type = ASTNodeType::Integer;
-          node->integer = (int)(sum);
-          node->repr = std::to_string((int)sum);
+          node->integer = (int)(acc);
+          node->repr = std::to_string((int)acc);
         } else {
           node->type = ASTNodeType::Decimal;
-          node->decimal = sum;
-          node->repr = std::to_string(sum);
+          node->decimal = acc;
+          node->repr = std::to_string(acc);
         }
       }
     }
