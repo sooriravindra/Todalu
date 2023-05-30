@@ -113,8 +113,8 @@ std::list<ASTNode> create_ast(std::list<std::string>& tokens,
 }
 
 void eval_tree(std::list<ASTNode>::iterator node);
-void eval_node(std::list<ASTNode>::iterator node, char op, float& acc,
-               bool& is_all_int) {
+void operate_on_node(std::list<ASTNode>::iterator node, char op, float& acc,
+                     bool& is_all_int) {
   auto operation = [](float a, float b, char op) {
     switch (op) {
       case '+':
@@ -148,7 +148,8 @@ void eval_tree(std::list<ASTNode>::iterator node) {
   if (node->type == ASTNodeType::List) {
     if (node->list.front().type == ASTNodeType::Symbol) {
       auto fun = node->list.front().repr;
-      if (fun.length() == 1) {
+      if (fun.length() == 1 &&
+          (fun[0] == '+' || fun[0] == '-' || fun[0] == '*' || fun[0] == '/')) {
         auto it = node->list.begin();
 
         if (node->list.size() < 3) throw ParseError("Needs atleast 2 operands");
@@ -159,12 +160,12 @@ void eval_tree(std::list<ASTNode>::iterator node) {
         bool is_all_int = true;
 
         if (fun[0] == '-' || fun[0] == '/') {
-          eval_node(it, '+', acc, is_all_int);
+          operate_on_node(it, '+', acc, is_all_int);
           it++;
         }
 
         while (it != node->list.end()) {
-          eval_node(it, fun[0], acc, is_all_int);
+          operate_on_node(it, fun[0], acc, is_all_int);
           it++;
         }
 
@@ -177,6 +178,47 @@ void eval_tree(std::list<ASTNode>::iterator node) {
           node->decimal = acc;
           node->repr = std::to_string(acc);
         }
+        // TODO clear list
+      } else if (fun == "quote") {
+        node->list.pop_front();
+        if (node->list.size() != 1)
+          throw ParseError("quote expects one argument");
+        node->type = node->list.front().type;
+        node->integer = node->list.front().integer;
+        node->decimal = node->list.front().decimal;
+        node->repr = node->list.front().repr;
+        auto x = node->list.front().list;
+        // TODO free memory here
+        node->list = x;
+      } else if (fun == "car") {
+        node->list.pop_front();
+        if (node->list.size() != 1)
+          throw ParseError("car expects one argument");
+        eval_tree(node->list.begin());
+        if (node->list.front().type != ASTNodeType::List)
+          throw ParseError("car expects argument of type list");
+        node->type = node->list.front().list.front().type;
+        node->integer = node->list.front().list.front().integer;
+        node->decimal = node->list.front().list.front().decimal;
+        node->repr = node->list.front().list.front().repr;
+        auto x = node->list.front().list.front().list;
+        // TODO free memory here
+        node->list = x;
+      } else if (fun == "cdr") {
+        node->list.pop_front();
+        if (node->list.size() != 1)
+          throw ParseError("car expects one argument");
+        eval_tree(node->list.begin());
+        if (node->list.front().type != ASTNodeType::List)
+          throw ParseError("car expects argument of type list");
+        node->list.front().list.pop_front();
+        node->type = ASTNodeType::List;
+        node->integer = 0;
+        node->decimal = 0;
+        node->repr = "";
+        auto x = node->list.front().list;
+        // TODO free memory here
+        node->list = x;
       }
     }
   }
