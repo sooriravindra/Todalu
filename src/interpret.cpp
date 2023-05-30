@@ -187,6 +187,29 @@ void eval_tree(std::list<ASTNode>::iterator node) {
         // TODO clear list
         return;
       }
+      if (fun == "eq?") {
+        node->list.pop_front();
+        if (node->list.size() != 2)
+          throw ParseError("eq? expects two arguments");
+
+        eval_tree(node->list.begin());
+        eval_tree(std::next(node->list.begin()));
+
+        int res = 0;
+        if (node->list.front().type == node->list.back().type &&
+            ((node->list.front().type == ASTNodeType::Integer &&
+              node->list.front().integer == node->list.back().integer) ||
+             (node->list.front().type == ASTNodeType::Decimal &&
+              node->list.front().decimal == node->list.front().decimal)))
+          res = 1;
+
+        node->type = ASTNodeType::Integer;
+        node->integer = res;
+        node->decimal = res;
+        node->list.clear();
+        node->repr = std::to_string(res);
+        return;
+      }
       if (fun == "quote") {
         node->list.pop_front();
         if (node->list.size() != 1)
