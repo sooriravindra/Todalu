@@ -295,6 +295,26 @@ void eval_tree(std::list<ASTNode>::iterator node) {
         node->list = l;
         return;
       }
+      if (fun == "if") {
+        node->list.pop_front();
+        if (node->list.size() != 3)
+          throw ParseError("if expects cond,body and else parts");
+        eval_tree(node->list.begin());
+        if (node->list.front().type == ASTNodeType::Integer &&
+            node->list.front().integer == 0) {
+          node->list.pop_front();
+        }
+        node->list.pop_front();
+        eval_tree(node->list.begin());
+        node->type = node->list.front().type;
+        node->decimal = node->list.front().decimal;
+        node->integer = node->list.front().integer;
+        node->repr = node->list.front().repr;
+        auto l = node->list.front().list;
+        node->list.front().list.clear();
+        node->list = l;
+        return;
+      }
     }
     // Treat this as lambda
     eval_tree(node->list.begin());
