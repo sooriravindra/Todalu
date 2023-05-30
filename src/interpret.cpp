@@ -59,20 +59,20 @@ std::string get_repr(std::list<ASTNode>& ast) {
   auto it = ast.begin();
   while (it != ast.end()) {
     switch (it->type) {
-    case ASTNodeType::Integer:
-    case ASTNodeType::Decimal:
-    case ASTNodeType::Symbol:
-      res += it->repr;
-      res += " ";
-      break;
-    case ASTNodeType::List:
-      res += "( ";
-      res += get_repr(it->list);
-      res += ") ";
-      break;
-    case ASTNodeType::Lambda:
-      res += "$lambda$ ";
-      break;
+      case ASTNodeType::Integer:
+      case ASTNodeType::Decimal:
+      case ASTNodeType::Symbol:
+        res += it->repr;
+        res += " ";
+        break;
+      case ASTNodeType::List:
+        res += "( ";
+        res += get_repr(it->list);
+        res += ") ";
+        break;
+      case ASTNodeType::Lambda:
+        res += "$lambda$ ";
+        break;
     }
     it++;
   }
@@ -123,29 +123,29 @@ void operate_on_node(std::list<ASTNode>::iterator node, char op, float& acc,
                      bool& is_all_int) {
   auto operation = [](float a, float b, char op) {
     switch (op) {
-    case '+':
-      return a + b;
-    case '-':
-      return a - b;
-    case '*':
-      return a * b;
-    case '/':
-      return a / b;
-    default:
-      throw std::runtime_error("Invalid operation");
+      case '+':
+        return a + b;
+      case '-':
+        return a - b;
+      case '*':
+        return a * b;
+      case '/':
+        return a / b;
+      default:
+        throw std::runtime_error("Invalid operation");
     }
   };
   eval_tree(node);
   switch (node->type) {
-  case ASTNodeType::Integer:
-    acc = operation(acc, node->integer, op);
-    break;
-  case ASTNodeType::Decimal:
-    acc = operation(acc, node->decimal, op);
-    is_all_int = false;
-    break;
-  default:
-    throw ParseError("Unsuitable operands to +");
+    case ASTNodeType::Integer:
+      acc = operation(acc, node->integer, op);
+      break;
+    case ASTNodeType::Decimal:
+      acc = operation(acc, node->decimal, op);
+      is_all_int = false;
+      break;
+    default:
+      throw ParseError("Unsuitable operands to +");
   }
 }
 
@@ -272,11 +272,36 @@ void eval_tree(std::list<ASTNode>::iterator node) {
         return;
       }
     }
-    // Try this as lambda
+    // Treat this as lambda
     eval_tree(node->list.begin());
     if (node->list.front().type != ASTNodeType::Lambda)
       throw ParseError(std::string("Invalid function : ") +
                        node->list.front().repr);
+    auto lambda = node->list.front();
+    if ((lambda.list.front().type == ASTNodeType::Symbol &&
+         node->list.size() != 2) ||
+        (lambda.list.front().type == ASTNodeType::List &&
+         node->list.size() != lambda.list.front().list.size() + 1)) {
+      throw ParseError("lambda argument count mismatch");
+    }
+
+    if (lambda.list.front().type == ASTNodeType::Symbol) {
+      eval_tree(std::next(node->list.begin()));
+      gEnv[lambda.list.front().repr].push_front(
+          *(std::next(node->list.begin())));
+    }
+
+    auto tmp = lambda.list;
+    eval_tree(std::next(tmp.begin()));
+    node->type = tmp.back().type;
+    node->integer = tmp.back().integer;
+    node->decimal = tmp.back().decimal;
+    node->list = tmp.back().list;
+    node->repr = tmp.back().repr;
+
+    if (lambda.list.front().type == ASTNodeType::Symbol) {
+      gEnv[lambda.list.front().repr].pop_front();
+    }
 
   } else if (node->type == ASTNodeType::Symbol) {
     auto x = gEnv.find(node->repr);
