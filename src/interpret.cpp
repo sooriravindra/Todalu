@@ -123,17 +123,17 @@ void operate_on_node(ASTNode* node, char op, float& acc, bool& is_all_int) {
         throw std::runtime_error("Invalid operation");
     }
   };
-  eval_tree(node);
-  switch (node->type()) {
+  auto operand = eval_tree(node);
+  switch (operand->type()) {
     case ASTNodeType::Integer:
-      acc = operation(acc, dynamic_cast<IntegerNode*>(node)->value, op);
+      acc = operation(acc, dynamic_cast<IntegerNode*>(operand)->value, op);
       break;
     case ASTNodeType::Decimal:
-      acc = operation(acc, dynamic_cast<DecimalNode*>(node)->value, op);
+      acc = operation(acc, dynamic_cast<DecimalNode*>(operand)->value, op);
       is_all_int = false;
       break;
     default:
-      throw ParseError("Unsuitable operands to +");
+      throw ParseError("Unsuitable operands to operator");
   }
 }
 
