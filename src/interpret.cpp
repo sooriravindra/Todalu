@@ -199,11 +199,8 @@ ASTNode* eval_tree(ASTNode* node) {
         if (listnode->list.size() != 3)
           throw ParseError("eq? expects two arguments");
 
-        auto it = listnode->list.begin();
-        it++;
-        auto oprnd1 = eval_tree(*it);
-        it++;
-        auto oprnd2 = eval_tree(*it);
+        auto oprnd1 = eval_tree(*(std::next(listnode->list.begin())));
+        auto oprnd2 = eval_tree(listnode->list.back());
 
         bool res = false;
         if (oprnd1->type() == oprnd2->type() &&
@@ -212,6 +209,46 @@ ASTNode* eval_tree(ASTNode* node) {
                dynamic_cast<IntegerNode*>(oprnd2)->value)) ||
              (oprnd1->type() == ASTNodeType::Decimal &&
               (dynamic_cast<DecimalNode*>(oprnd1)->value ==
+               dynamic_cast<DecimalNode*>(oprnd2)->value))))
+          res = true;
+
+        return new BoolNode(res);
+      }
+
+      if (fun == ">") {
+        if (listnode->list.size() != 3)
+          throw ParseError("> expects two arguments");
+
+        auto oprnd1 = eval_tree(*(std::next(listnode->list.begin())));
+        auto oprnd2 = eval_tree(listnode->list.back());
+
+        bool res = false;
+        if (oprnd1->type() == oprnd2->type() &&
+            ((oprnd1->type() == ASTNodeType::Integer &&
+              (dynamic_cast<IntegerNode*>(oprnd1)->value >
+               dynamic_cast<IntegerNode*>(oprnd2)->value)) ||
+             (oprnd1->type() == ASTNodeType::Decimal &&
+              (dynamic_cast<DecimalNode*>(oprnd1)->value >
+               dynamic_cast<DecimalNode*>(oprnd2)->value))))
+          res = true;
+
+        return new BoolNode(res);
+      }
+
+      if (fun == "<") {
+        if (listnode->list.size() != 3)
+          throw ParseError("< expects two arguments");
+
+        auto oprnd1 = eval_tree(*(std::next(listnode->list.begin())));
+        auto oprnd2 = eval_tree(listnode->list.back());
+
+        bool res = false;
+        if (oprnd1->type() == oprnd2->type() &&
+            ((oprnd1->type() == ASTNodeType::Integer &&
+              (dynamic_cast<IntegerNode*>(oprnd1)->value <
+               dynamic_cast<IntegerNode*>(oprnd2)->value)) ||
+             (oprnd1->type() == ASTNodeType::Decimal &&
+              (dynamic_cast<DecimalNode*>(oprnd1)->value <
                dynamic_cast<DecimalNode*>(oprnd2)->value))))
           res = true;
 
