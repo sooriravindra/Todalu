@@ -330,7 +330,17 @@ ASTNode* eval_tree(ASTNode* node) {
   return node;
 }
 
+bool is_comment(std::string& line) {
+  for (auto c : line) {
+    if (std::isspace(c)) continue;
+    if (c == '#') return true;
+    return false;
+  }
+  return false;
+}
+
 std::string interpret_line(std::string str) {
+  if (is_comment(str)) return "";
   auto tokens = tokenizer(str);
   auto ast = create_ast(tokens);
 
@@ -339,5 +349,5 @@ std::string interpret_line(std::string str) {
   if (ast.size() != 1)
     throw ParseError("Contains more than one node at the base");
 
-  return eval_tree(ast.front())->getRepr();
+  return eval_tree(ast.front())->getRepr() + "\n";
 }

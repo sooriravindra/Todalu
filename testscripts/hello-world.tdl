@@ -1,0 +1,3 @@
+#!/home/rsoori/repos/todalu/build/todalu
+(quote Hello)
+(car (quote (World is full of surprises!)))
