@@ -215,6 +215,34 @@ ASTNode* eval_tree(ASTNode* node) {
         return new BoolNode(res);
       }
 
+      if (fun == "list?") {
+        if (listnode->list.size() != 2)
+          throw ParseError("list? expects one argument");
+        auto oprnd = eval_tree(listnode->list.back());
+        return new BoolNode(oprnd->type() == ASTNodeType::List);
+      }
+
+      if (fun == "int?") {
+        if (listnode->list.size() != 2)
+          throw ParseError("int? expects one argument");
+        auto oprnd = eval_tree(listnode->list.back());
+        return new BoolNode(oprnd->type() == ASTNodeType::Integer);
+      }
+
+      if (fun == "bool?") {
+        if (listnode->list.size() != 2)
+          throw ParseError("bool? expects one argument");
+        auto oprnd = eval_tree(listnode->list.back());
+        return new BoolNode(oprnd->type() == ASTNodeType::Bool);
+      }
+
+      if (fun == "dec?") {
+        if (listnode->list.size() != 2)
+          throw ParseError("dec? expects one argument");
+        auto oprnd = eval_tree(listnode->list.back());
+        return new BoolNode(oprnd->type() == ASTNodeType::Decimal);
+      }
+
       if (fun == ">") {
         if (listnode->list.size() != 3)
           throw ParseError("> expects two arguments");
@@ -235,26 +263,18 @@ ASTNode* eval_tree(ASTNode* node) {
         return new BoolNode(res);
       }
 
-      if (fun == "<") {
-        if (listnode->list.size() != 3)
-          throw ParseError("< expects two arguments");
-
-        auto oprnd1 = eval_tree(*(std::next(listnode->list.begin())));
-        auto oprnd2 = eval_tree(listnode->list.back());
-
-        bool res = false;
-        if (oprnd1->type() == oprnd2->type() &&
-            ((oprnd1->type() == ASTNodeType::Integer &&
-              (dynamic_cast<IntegerNode*>(oprnd1)->value <
-               dynamic_cast<IntegerNode*>(oprnd2)->value)) ||
-             (oprnd1->type() == ASTNodeType::Decimal &&
-              (dynamic_cast<DecimalNode*>(oprnd1)->value <
-               dynamic_cast<DecimalNode*>(oprnd2)->value))))
-          res = true;
-
-        return new BoolNode(res);
+      if (fun == "progn") {
+        if (listnode->list.size() < 2)
+          throw ParseError("progn expects atleast one element");
+        auto it = std::next(listnode->list.begin());
+        ASTNode* ret = nullptr;
+        while (it != listnode->list.end()) {
+          ret = eval_tree(*it);
+          it++;
+        }
+        return ret;
       }
-
+                          
       if (fun == "quote") {
         if (listnode->list.size() != 2)
           throw ParseError("quote expects one argument");
@@ -347,13 +367,6 @@ ASTNode* eval_tree(ASTNode* node) {
         }
         return eval_tree(body);
       }
-
-      if (fun == "not") {
-        if (listnode->list.size() != 2)
-          throw ParseError("not expects one argument");
-        auto body = eval_tree(listnode->list.back());
-        return new BoolNode(!body->getBool());
-      }
     }
     // Treat this as lambda and try to execute
     auto lambda_candidate = eval_tree(listnode->list.front());
@@ -383,6 +396,9 @@ ASTNode* eval_tree(ASTNode* node) {
     return result;
 
   } else if (node->type() == ASTNodeType::Symbol) {
+    if (node->getRepr() == "#fail") {
+      throw ParseError("Exception thrown!");
+    }
     auto pair = gEnv.find(node->getRepr());
     if (pair != gEnv.end()) {
       return pair->second.front();  // second is list of possible values
