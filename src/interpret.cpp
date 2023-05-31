@@ -224,6 +224,14 @@ ASTNode* eval_tree(ASTNode* node) {
         return listnode->list.back();
       }
 
+      if (fun == "eval") {
+        if (listnode->list.size() != 2)
+          throw ParseError("eval expects one argument");
+        return eval_tree(
+            eval_tree(listnode->list.back()));  // Once to get the operand,
+                                                // second actually evaluates
+      }
+
       if (fun == "car") {
         if (listnode->list.size() != 2)
           throw ParseError("car expects one argument");
@@ -243,6 +251,19 @@ ASTNode* eval_tree(ASTNode* node) {
 
         auto ret = dynamic_cast<ListNode*>(oprnd)->list;
         ret.pop_front();
+        return new ListNode(ret);
+      }
+
+      if (fun == "cons") {
+        if (listnode->list.size() != 3)
+          throw ParseError("cons expects two arguments");
+        auto oprnd1 = eval_tree(*(std::next(listnode->list.begin())));
+        auto oprnd2 = eval_tree(listnode->list.back());
+        if (oprnd2->type() != ASTNodeType::List)
+          throw ParseError("cons expects second argument of type list");
+
+        auto ret = dynamic_cast<ListNode*>(oprnd2)->list;
+        ret.push_front(oprnd1);
         return new ListNode(ret);
       }
 
@@ -341,7 +362,7 @@ bool is_comment(std::string& line) {
     if (c == '#') return true;
     return false;
   }
-  return false;
+  return true;
 }
 
 std::string interpret_line(std::string str) {
