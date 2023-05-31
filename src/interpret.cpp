@@ -5,18 +5,9 @@
 #include <regex>
 #include <string>
 
-enum class ASTNodeType { Integer, Decimal, Symbol, List, Lambda };
+#include "ast.h"
 
-typedef struct _ASTNode {
-  ASTNodeType type;
-  std::string repr;
-  // TODO Make this a union or a super class and dervied classes
-  int integer;
-  float decimal;
-  std::list<struct _ASTNode> list;
-} ASTNode;
-
-std::map<std::string, std::list<ASTNode>> gEnv;
+std::map<std::string, std::list<ASTNode*>> gEnv;
 
 std::list<std::string> tokenizer(std::string& str) {
   str = std::regex_replace(str, std::regex("\\("), " ( ");
@@ -54,74 +45,70 @@ float get_float(const std::string& input) {
   return value;
 }
 
+int get_bool(const std::string& input) {
+  if (input == "t") return 1;
+  if (input == "nil") return 0;
+  return -1;
+}
+
+#if 0
 std::string get_repr(std::list<ASTNode>& ast) {
   std::string res = "";
   auto it = ast.begin();
   while (it != ast.end()) {
     switch (it->type) {
-      case ASTNodeType::Integer:
-      case ASTNodeType::Decimal:
-      case ASTNodeType::Symbol:
-        res += it->repr;
-        res += " ";
-        break;
-      case ASTNodeType::List:
-        res += "( ";
-        res += get_repr(it->list);
-        res += ") ";
-        break;
-      case ASTNodeType::Lambda:
-        res += "$lambda$ ";
-        break;
+    case ASTNodeType::Integer:
+    case ASTNodeType::Decimal:
+    case ASTNodeType::Symbol:
+      res += it->repr;
+      res += " ";
+      break;
+    case ASTNodeType::List:
+      res += "( ";
+      res += get_repr(it->list);
+      res += ") ";
+      break;
+    case ASTNodeType::Lambda:
+      res += "$lambda$ ";
+      break;
     }
     it++;
   }
   return res;
 }
+#endif
 
-std::list<ASTNode> create_ast(std::list<std::string>& tokens,
-                              bool closing_paren_allow = false) {
-  std::list<ASTNode> ret;
+std::list<ASTNode*> create_ast(std::list<std::string>& tokens,
+                               bool closing_paren_allow = false) {
+  std::list<ASTNode*> ret;
   if (tokens.empty()) throw ParseError("Unexpected EOF while reading input");
 
   while (tokens.size()) {
     std::string t = tokens.front();
     tokens.pop_front();
+    ASTNode* node;
     if (t == "(") {
-      auto node = new ASTNode();
-      node->type = ASTNodeType::List;
-      node->list = create_ast(tokens, true);
-      node->repr = get_repr(node->list);
-      ret.push_back(*node);
+      node = new ListNode(create_ast(tokens, true));
     } else if (t == ")") {
       if (not closing_paren_allow) throw ParseError("Unexpected ')'");
       return ret;
     } else if (is_int(t)) {
-      auto node = new ASTNode();
-      node->type = ASTNodeType::Integer;
-      node->integer = std::stoi(t);
-      node->repr = t;
-      ret.push_back(*node);
+      node = new IntegerNode(std::stoi(t));
     } else if (is_float(t)) {
-      auto node = new ASTNode();
-      node->type = ASTNodeType::Decimal;
-      node->decimal = get_float(t);
-      node->repr = t;
-      ret.push_back(*node);
+      node = new DecimalNode(get_float(t));
+    } else if (get_bool(t) != -1) {
+      node = new BoolNode(get_bool(t) == 1);
     } else {
-      auto node = new ASTNode();
-      node->type = ASTNodeType::Symbol;
-      node->repr = t;
-      ret.push_back(*node);
+      node = new SymbolNode(t);
     }
+    ret.push_back(node);
   }
   if (closing_paren_allow) throw ParseError("Unmatched '('");
   return ret;
 }
 
-void eval_tree(std::list<ASTNode>::iterator node);
-void operate_on_node(std::list<ASTNode>::iterator node, char op, float& acc,
-                     bool& is_all_int) {
+ASTNode* eval_tree(ASTNode* node);
+void operate_on_node(ASTNode* node, char op, float& acc, bool& is_all_int) {
   auto operation = [](float a, float b, char op) {
     switch (op) {
       case '+':
@@ -137,12 +124,12 @@ void operate_on_node(std::list<ASTNode>::iterator node, char op, float& acc,
     }
   };
   eval_tree(node);
-  switch (node->type) {
+  switch (node->type()) {
     case ASTNodeType::Integer:
-      acc = operation(acc, node->integer, op);
+      acc = operation(acc, dynamic_cast<IntegerNode*>(node)->value, op);
       break;
     case ASTNodeType::Decimal:
-      acc = operation(acc, node->decimal, op);
+      acc = operation(acc, dynamic_cast<DecimalNode*>(node)->value, op);
       is_all_int = false;
       break;
     default:
@@ -150,268 +137,197 @@ void operate_on_node(std::list<ASTNode>::iterator node, char op, float& acc,
   }
 }
 
-void eval_tree(std::list<ASTNode>::iterator node) {
-  // TODO Evaluaute AST here
-  if (node->type == ASTNodeType::List) {
-    if (node->list.front().type == ASTNodeType::Symbol) {
-      auto fun = node->list.front().repr;
-      if (fun.length() == 1 &&
-          (fun[0] == '+' || fun[0] == '-' || fun[0] == '*' || fun[0] == '/')) {
-        auto it = node->list.begin();
+void bind_arguments(LambdaNode* lambda, ListNode* listnode) {
+  if (lambda->arglist->type() == ASTNodeType::Symbol) {
+    auto arg = eval_tree(listnode->list.back());  // there is only 1 arg
+    gEnv[lambda->arglist->getRepr()].push_front(arg);
+  } else if (lambda->arglist->type() == ASTNodeType::List) {
+    auto it = dynamic_cast<ListNode*>(lambda->arglist)->list.begin();
+    auto itend = dynamic_cast<ListNode*>(lambda->arglist)->list.end();
+    auto itarg =
+        std::next(listnode->list.begin());  // 1st node in list is lambda
+    while (it != itend) {
+      gEnv[(*it)->getRepr()].push_front(eval_tree(*itarg));
+      it++;
+      itarg++;
+    }
+  }
+}
 
-        if (node->list.size() < 3) throw ParseError("Needs atleast 2 operands");
+void unbind_arguments(LambdaNode* lambda) {
+  if (lambda->arglist->type() == ASTNodeType::Symbol) {
+    gEnv[lambda->arglist->getRepr()].pop_front();
+    if (gEnv[lambda->arglist->getRepr()].size() == 0)
+      gEnv.erase(lambda->arglist->getRepr());
+  } else if (lambda->arglist->type() == ASTNodeType::List) {
+    auto it = dynamic_cast<ListNode*>(lambda->arglist)->list.begin();
+    auto itend = dynamic_cast<ListNode*>(lambda->arglist)->list.end();
+    while (it != itend) {
+      gEnv[(*it)->getRepr()].pop_front();
+      if (gEnv[(*it)->getRepr()].size() == 0) gEnv.erase((*it)->getRepr());
+      it++;
+    }
+  }
+}
 
-        it++;
+ASTNode* eval_tree(ASTNode* node) {
+  if (node->type() == ASTNodeType::List) {
+    auto listnode = dynamic_cast<ListNode*>(node);
+    if (listnode->list.front()->type() == ASTNodeType::Symbol) {
+      auto fun = dynamic_cast<SymbolNode*>(listnode->list.front())->symbol;
+      listnode->list.pop_front();
 
+      if (fun == "+" || fun == "-" || fun == "*" || fun == "/") {
+        auto it = listnode->list.begin();
+        if (listnode->list.size() < 2)
+          throw ParseError("Needs atleast 2 operands");
         float acc = (fun[0] == '*') ? 1 : 0;
         bool is_all_int = true;
-
-        if (fun[0] == '-' || fun[0] == '/') {
-          operate_on_node(it, '+', acc, is_all_int);
+        if (fun == "-" || fun == "/") {
+          operate_on_node(*it, '+', acc, is_all_int);
           it++;
         }
-
-        while (it != node->list.end()) {
-          operate_on_node(it, fun[0], acc, is_all_int);
+        while (it != listnode->list.end()) {
+          operate_on_node(*it, fun[0], acc, is_all_int);
           it++;
         }
-
-        if (is_all_int) {
-          node->type = ASTNodeType::Integer;
-          node->integer = (int)(acc);
-          node->repr = std::to_string((int)acc);
-        } else {
-          node->type = ASTNodeType::Decimal;
-          node->decimal = acc;
-          node->repr = std::to_string(acc);
-        }
-        // TODO clear list
-        return;
+        if (is_all_int) return new IntegerNode(acc);
+        return new DecimalNode(acc);
       }
+
       if (fun == "eq?") {
-        node->list.pop_front();
-        if (node->list.size() != 2)
+        if (listnode->list.size() != 2)
           throw ParseError("eq? expects two arguments");
 
-        eval_tree(node->list.begin());
-        eval_tree(std::next(node->list.begin()));
+        auto oprnd1 = eval_tree(listnode->list.front());
+        auto oprnd2 = eval_tree(listnode->list.back());
 
-        int res = 0;
-        if (node->list.front().type == node->list.back().type &&
-            ((node->list.front().type == ASTNodeType::Integer &&
-              node->list.front().integer == node->list.back().integer) ||
-             (node->list.front().type == ASTNodeType::Decimal &&
-              node->list.front().decimal == node->list.back().decimal)))
-          res = 1;
+        bool res = false;
+        if (oprnd1->type() == oprnd2->type() &&
+            ((oprnd1->type() == ASTNodeType::Integer &&
+              (dynamic_cast<IntegerNode*>(oprnd1)->value ==
+               dynamic_cast<IntegerNode*>(oprnd2)->value)) ||
+             (oprnd1->type() == ASTNodeType::Decimal &&
+              (dynamic_cast<DecimalNode*>(oprnd1)->value ==
+               dynamic_cast<DecimalNode*>(oprnd2)->value))))
+          res = true;
 
-        node->type = ASTNodeType::Integer;
-        node->integer = res;
-        node->decimal = res;
-        node->list.clear();
-        node->repr = std::to_string(res);
-        return;
+        return new BoolNode(res);
       }
+
       if (fun == "quote") {
-        node->list.pop_front();
-        if (node->list.size() != 1)
+        if (listnode->list.size() != 1)
           throw ParseError("quote expects one argument");
-        node->type = node->list.front().type;
-        node->integer = node->list.front().integer;
-        node->decimal = node->list.front().decimal;
-        node->repr = node->list.front().repr;
-        auto x = node->list.front().list;
-        // TODO free memory here
-        node->list = x;
-        return;
+        return listnode->list.front();
       }
-      if (fun == "car") {
-        node->list.pop_front();
-        if (node->list.size() != 1)
-          throw ParseError("car expects one argument");
-        eval_tree(node->list.begin());
-        if (node->list.front().type != ASTNodeType::List)
-          throw ParseError("car expects argument of type list");
-        node->type = node->list.front().list.front().type;
-        node->integer = node->list.front().list.front().integer;
-        node->decimal = node->list.front().list.front().decimal;
-        node->repr = node->list.front().list.front().repr;
-        auto x = node->list.front().list.front().list;
-        // TODO free memory here
-        node->list = x;
-        return;
-      }
-      if (fun == "cdr") {
-        node->list.pop_front();
-        if (node->list.size() != 1)
-          throw ParseError("car expects one argument");
-        eval_tree(node->list.begin());
-        if (node->list.front().type != ASTNodeType::List)
-          throw ParseError("car expects argument of type list");
-        node->list.front().list.pop_front();
-        node->type = ASTNodeType::List;
-        node->integer = 0;
-        node->decimal = 0;
-        node->repr = "";
-        auto x = node->list.front().list;
-        // TODO free memory here
-        node->list = x;
-        return;
-      }
-      if (fun == "lambda") {
-        if (node->list.size() != 3) throw ParseError("lambda syntax incorrect");
-        node->type = ASTNodeType::Lambda;
-        node->integer = 0;
-        node->decimal = 0;
-        node->repr = "$lambda$";
-        node->list.pop_front();
 
-        if (node->list.front().type == ASTNodeType::List) {
-          auto l = node->list.front().list.begin();
-          while (l != node->list.front().list.end()) {
-            if (l->type != ASTNodeType::Symbol)
+      if (fun == "car") {
+        if (listnode->list.size() != 1)
+          throw ParseError("car expects one argument");
+        auto oprnd = eval_tree(listnode->list.front());
+        if (oprnd->type() != ASTNodeType::List)
+          throw ParseError("car expects argument of type list");
+        // TODO free memory here?
+        return dynamic_cast<ListNode*>(oprnd)->list.front();
+      }
+
+      if (fun == "cdr") {
+        if (listnode->list.size() != 1)
+          throw ParseError("car expects one argument");
+        auto oprnd = eval_tree(listnode->list.front());
+        if (oprnd->type() != ASTNodeType::List)
+          throw ParseError("car expects argument of type list");
+
+        dynamic_cast<ListNode*>(oprnd)->list.pop_front();
+        return oprnd;
+      }
+
+      if (fun == "lambda") {
+        if (listnode->list.size() != 2)
+          throw ParseError("lambda syntax incorrect");
+        auto arglist = listnode->list.front();
+        auto body = listnode->list.back();
+
+        if (arglist->type() == ASTNodeType::List) {
+          auto l = dynamic_cast<ListNode*>(arglist)->list.begin();
+          while (l != dynamic_cast<ListNode*>(arglist)->list.end()) {
+            if ((*l)->type() != ASTNodeType::Symbol)
               throw ParseError("lambda argument list has non-symbol");
             l++;
           }
-        } else if (node->list.front().type != ASTNodeType::Symbol) {
+        } else if (arglist->type() != ASTNodeType::Symbol) {
           throw ParseError("lambda argument has non-symbol");
         }
-        return;
+
+        auto lambdanode = new LambdaNode(arglist, body);
+        return lambdanode;
       }
+
       if (fun == "def") {
-        node->list.pop_front();
-        if (node->list.size() != 2)
+        if (listnode->list.size() != 2)
           throw ParseError("def expects two arguments");
-        if (node->list.front().type != ASTNodeType::Symbol)
+        if (listnode->list.front()->type() != ASTNodeType::Symbol)
           throw ParseError("def expects first argument to be symbol");
-        auto key = node->list.begin();
-        auto value = std::next(key);
-        eval_tree(value);
-        gEnv[key->repr].push_front(*value);
-        node->type = value->type;
-        node->integer = value->integer;
-        node->decimal = value->decimal;
-        node->repr = value->repr;
-        auto l = value->list;
-        node->list = l;
-        return;
+        auto sym = listnode->list.front();
+        auto value = eval_tree(listnode->list.back());
+        gEnv[sym->getRepr()].push_front(value);
+        return value;
       }
+
       if (fun == "if") {
-        node->list.pop_front();
-        if (node->list.size() != 3)
+        if (listnode->list.size() != 3)
           throw ParseError("if expects cond,body and else parts");
-        eval_tree(node->list.begin());
-        if (node->list.front().type == ASTNodeType::Integer &&
-            node->list.front().integer == 0) {
-          node->list.pop_front();
+        auto predicate = eval_tree(listnode->list.front());
+        listnode->list.pop_front();  // remove predicate
+        if (predicate->getBool() == false) {
+          listnode->list.pop_front();  // remove if body
         }
-        node->list.pop_front();
-        eval_tree(node->list.begin());
-        node->type = node->list.front().type;
-        node->decimal = node->list.front().decimal;
-        node->integer = node->list.front().integer;
-        node->repr = node->list.front().repr;
-        auto l = node->list.front().list;
-        node->list.front().list.clear();
-        node->list = l;
-        return;
+        return eval_tree(listnode->list.front());
       }
+
       if (fun == "not") {
-        node->list.pop_front();
-        if (node->list.size() != 1)
+        if (listnode->list.size() != 1)
           throw ParseError("not expects one argument");
-        eval_tree(node->list.begin());
-        int res = 0;
-        if ((node->list.front().type == ASTNodeType::Integer &&
-             node->list.front().integer == 0) ||
-            (node->list.front().type == ASTNodeType::Decimal &&
-             node->list.front().decimal == 0))
-          res = 1;
-        node->type = ASTNodeType::Integer;
-        node->decimal = res;
-        node->integer = res;
-        node->repr = std::to_string(res);
-        node->list.clear();
-        return;
+        auto body = eval_tree(listnode->list.front());
+        return new BoolNode(!body->getBool());
       }
     }
-    // Treat this as lambda
-    eval_tree(node->list.begin());
-    if (node->list.front().type != ASTNodeType::Lambda)
+    // Treat this as lambda and try to execute
+    auto lambda_candidate = eval_tree(listnode->list.front());
+    if (lambda_candidate->type() != ASTNodeType::Lambda)
       throw ParseError(std::string("Invalid function : ") +
-                       node->list.front().repr);
-    auto lambda = node->list.front();
-    if ((lambda.list.front().type == ASTNodeType::Symbol &&
-         node->list.size() != 2) ||
-        (lambda.list.front().type == ASTNodeType::List &&
-         node->list.size() != lambda.list.front().list.size() + 1)) {
+                       lambda_candidate->getRepr());
+
+    auto lambda = dynamic_cast<LambdaNode*>(lambda_candidate);
+
+    if ((lambda->arglist->type() == ASTNodeType::Symbol &&
+         listnode->list.size() != 2) ||
+        (lambda->arglist->type() == ASTNodeType::List &&
+         listnode->list.size() !=
+             dynamic_cast<ListNode*>(lambda->arglist)->list.size() + 1)) {
       throw ParseError("lambda argument count mismatch");
     }
 
-    if (lambda.list.front().type == ASTNodeType::Symbol) {
-      eval_tree(std::next(node->list.begin()));
-      gEnv[lambda.list.front().repr].push_front(
-          *(std::next(node->list.begin())));
-    } else if (lambda.list.front().type == ASTNodeType::List) {
-      auto it = lambda.list.front().list.begin();
-      auto it2 = std::next(node->list.begin());
-      while (it != lambda.list.front().list.end()) {
-        eval_tree(it2);
-        gEnv[it->repr].push_front(*it2);
-        it++;
-        it2++;
-      }
-    }
-
-    auto tmp = lambda.list;
+    bind_arguments(lambda, listnode);
+    ASTNode* result = nullptr;
     try {
-      eval_tree(std::next(tmp.begin()));
+      result = eval_tree(lambda->body);
     } catch (...) {
-      if (lambda.list.front().type == ASTNodeType::Symbol) {
-        gEnv[lambda.list.front().repr].pop_front();
-        if (gEnv[lambda.list.front().repr].size() == 0)
-          gEnv.erase(lambda.list.front().repr);
-      } else if (lambda.list.front().type == ASTNodeType::List) {
-        auto it = lambda.list.front().list.begin();
-        while (it != lambda.list.front().list.end()) {
-          gEnv[it->repr].pop_front();
-          if (gEnv[it->repr].size() == 0) gEnv.erase(it->repr);
-          it++;
-        }
-      }
+      unbind_arguments(lambda);
       throw;
     }
-    node->type = tmp.back().type;
-    node->integer = tmp.back().integer;
-    node->decimal = tmp.back().decimal;
-    node->list = tmp.back().list;
-    node->repr = tmp.back().repr;
+    unbind_arguments(lambda);
+    return result;
 
-    if (lambda.list.front().type == ASTNodeType::Symbol) {
-      gEnv[lambda.list.front().repr].pop_front();
-      if (gEnv[lambda.list.front().repr].size() == 0)
-        gEnv.erase(lambda.list.front().repr);
-    } else if (lambda.list.front().type == ASTNodeType::List) {
-      auto it = lambda.list.front().list.begin();
-      while (it != lambda.list.front().list.end()) {
-        gEnv[it->repr].pop_front();
-        if (gEnv[it->repr].size() == 0) gEnv.erase(it->repr);
-        it++;
-      }
-    }
-
-  } else if (node->type == ASTNodeType::Symbol) {
-    auto x = gEnv.find(node->repr);
-    if (x != gEnv.end()) {
-      auto y = x->second.front();
-      node->type = y.type;
-      node->decimal = y.decimal;
-      node->integer = y.integer;
-      node->list = y.list;
-      node->repr = y.repr;
+  } else if (node->type() == ASTNodeType::Symbol) {
+    auto pair = gEnv.find(node->getRepr());
+    if (pair != gEnv.end()) {
+      return pair->second.front();  // second is list of possible values
     } else {
-      throw ParseError(std::string("Undefined symbol : ") + node->repr);
+      throw ParseError(std::string("Undefined symbol : ") + node->getRepr());
     }
   }
+  return node;
 }
 
 std::string interpret_line_internal(std::string str) {
@@ -423,9 +339,7 @@ std::string interpret_line_internal(std::string str) {
   if (ast.size() != 1)
     throw ParseError("Contains more than one node at the base");
 
-  eval_tree(ast.begin());
-
-  return get_repr(ast);
+  return eval_tree(ast.front())->getRepr();
 }
 
 std::string interpret_line(std::string str) {
