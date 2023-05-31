@@ -18,7 +18,9 @@ public:
     return value;
   }
   std::string getRepr() {
-    return std::to_string(value);
+    if (value)
+      return "t";
+    return "nil";
   }
   bool value = false;
 };

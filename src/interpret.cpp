@@ -330,7 +330,7 @@ ASTNode* eval_tree(ASTNode* node) {
   return node;
 }
 
-std::string interpret_line_internal(std::string str) {
+std::string interpret_line(std::string str) {
   auto tokens = tokenizer(str);
   auto ast = create_ast(tokens);
 
@@ -340,8 +340,4 @@ std::string interpret_line_internal(std::string str) {
     throw ParseError("Contains more than one node at the base");
 
   return eval_tree(ast.front())->getRepr();
-}
-
-std::string interpret_line(std::string str) {
-  return interpret_line_internal(str);
 }
