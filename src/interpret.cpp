@@ -237,12 +237,13 @@ ASTNode* eval_tree(ASTNode* node) {
       if (fun == "cdr") {
         if (listnode->list.size() != 2)
           throw ParseError("cdr expects one argument");
-        auto oprnd = eval_tree(listnode->list.front());
+        auto oprnd = eval_tree(listnode->list.back());
         if (oprnd->type() != ASTNodeType::List)
           throw ParseError("cdr expects argument of type list");
 
-        dynamic_cast<ListNode*>(oprnd)->list.pop_front();
-        return oprnd;
+        auto ret = dynamic_cast<ListNode*>(oprnd)->list;
+        ret.pop_front();
+        return new ListNode(ret);
       }
 
       if (fun == "lambda") {

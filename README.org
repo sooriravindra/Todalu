@@ -2,7 +2,7 @@
 #+author: Raveendra Soori
 #+date: 2023-05-28
 
-Todalu (Kannada for Lisp), is my attempt to write an interpreter for my own dialect of Lisp.
+Todalu (Kannada for Lisp), is my attempt to write an interpreter for a lisp like language.
 
 ** Tentative features
 
