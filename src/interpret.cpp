@@ -175,11 +175,11 @@ ASTNode* eval_tree(ASTNode* node) {
     auto listnode = dynamic_cast<ListNode*>(node);
     if (listnode->list.front()->type() == ASTNodeType::Symbol) {
       auto fun = dynamic_cast<SymbolNode*>(listnode->list.front())->symbol;
-      listnode->list.pop_front();
 
       if (fun == "+" || fun == "-" || fun == "*" || fun == "/") {
         auto it = listnode->list.begin();
-        if (listnode->list.size() < 2)
+        it++;
+        if (listnode->list.size() < 3)
           throw ParseError("Needs atleast 2 operands");
         float acc = (fun[0] == '*') ? 1 : 0;
         bool is_all_int = true;
@@ -196,11 +196,14 @@ ASTNode* eval_tree(ASTNode* node) {
       }
 
       if (fun == "eq?") {
-        if (listnode->list.size() != 2)
+        if (listnode->list.size() != 3)
           throw ParseError("eq? expects two arguments");
 
-        auto oprnd1 = eval_tree(listnode->list.front());
-        auto oprnd2 = eval_tree(listnode->list.back());
+        auto it = listnode->list.begin();
+        it++;
+        auto oprnd1 = eval_tree(*it);
+        it++;
+        auto oprnd2 = eval_tree(*it);
 
         bool res = false;
         if (oprnd1->type() == oprnd2->type() &&
@@ -216,15 +219,15 @@ ASTNode* eval_tree(ASTNode* node) {
       }
 
       if (fun == "quote") {
-        if (listnode->list.size() != 1)
+        if (listnode->list.size() != 2)
           throw ParseError("quote expects one argument");
-        return listnode->list.front();
+        return listnode->list.back();
       }
 
       if (fun == "car") {
-        if (listnode->list.size() != 1)
+        if (listnode->list.size() != 2)
           throw ParseError("car expects one argument");
-        auto oprnd = eval_tree(listnode->list.front());
+        auto oprnd = eval_tree(listnode->list.back());
         if (oprnd->type() != ASTNodeType::List)
           throw ParseError("car expects argument of type list");
         // TODO free memory here?
@@ -232,20 +235,20 @@ ASTNode* eval_tree(ASTNode* node) {
       }
 
       if (fun == "cdr") {
-        if (listnode->list.size() != 1)
-          throw ParseError("car expects one argument");
+        if (listnode->list.size() != 2)
+          throw ParseError("cdr expects one argument");
         auto oprnd = eval_tree(listnode->list.front());
         if (oprnd->type() != ASTNodeType::List)
-          throw ParseError("car expects argument of type list");
+          throw ParseError("cdr expects argument of type list");
 
         dynamic_cast<ListNode*>(oprnd)->list.pop_front();
         return oprnd;
       }
 
       if (fun == "lambda") {
-        if (listnode->list.size() != 2)
+        if (listnode->list.size() != 3)
           throw ParseError("lambda syntax incorrect");
-        auto arglist = listnode->list.front();
+        auto arglist = *std::next(listnode->list.begin());
         auto body = listnode->list.back();
 
         if (arglist->type() == ASTNodeType::List) {
@@ -264,6 +267,7 @@ ASTNode* eval_tree(ASTNode* node) {
       }
 
       if (fun == "def") {
+        listnode->list.pop_front();
         if (listnode->list.size() != 2)
           throw ParseError("def expects two arguments");
         if (listnode->list.front()->type() != ASTNodeType::Symbol)
@@ -275,20 +279,20 @@ ASTNode* eval_tree(ASTNode* node) {
       }
 
       if (fun == "if") {
-        if (listnode->list.size() != 3)
+        if (listnode->list.size() != 4)
           throw ParseError("if expects cond,body and else parts");
-        auto predicate = eval_tree(listnode->list.front());
-        listnode->list.pop_front();  // remove predicate
+        auto predicate = eval_tree(*(std::next(listnode->list.begin())));
+        auto body = *(std::next(std::next(listnode->list.begin())));
         if (predicate->getBool() == false) {
-          listnode->list.pop_front();  // remove if body
+          body = listnode->list.back();
         }
-        return eval_tree(listnode->list.front());
+        return eval_tree(body);
       }
 
       if (fun == "not") {
-        if (listnode->list.size() != 1)
+        if (listnode->list.size() != 2)
           throw ParseError("not expects one argument");
-        auto body = eval_tree(listnode->list.front());
+        auto body = eval_tree(listnode->list.back());
         return new BoolNode(!body->getBool());
       }
     }
