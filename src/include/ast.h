@@ -45,7 +45,12 @@ class StringNode : public ASTNode {
   StringNode(std::string v) : value(v) {}
   ASTNodeType type() { return ASTNodeType::String; }
   bool getBool() { return !value.empty(); }
-  std::string getRepr() { return value; }
+  std::string getRepr() {
+    std::string repr = "\"";
+    repr += value;
+    repr += "\"";
+    return repr;
+  }
   std::string value = "";
 };
 

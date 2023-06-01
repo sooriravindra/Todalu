@@ -11,7 +11,8 @@ void run_repl() {
   while ((line = readline(curr_prompt)) != nullptr) {
     curr_prompt = red_prompt;
     try {
-      std::cout << interpret_line(line);
+      auto res = interpret_line(line);
+      std::cout << "=> " << res;
       curr_prompt = green_prompt;
     } catch (ParseError& e) {
       std::cerr << "Parse error: " << e.what() << std::endl;

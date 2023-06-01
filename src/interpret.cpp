@@ -256,7 +256,11 @@ ASTNode* eval_tree(ASTNode* node) {
         if (listnode->list.size() != 2)
           throw ParseError("print expects one argument");
         auto oprnd = eval_tree(listnode->list.back());
-        std::cout << oprnd->getRepr();
+        if (oprnd->type() == ASTNodeType::String) {
+          std::cout << dynamic_cast<StringNode*>(oprnd)->value;
+        } else {
+          std::cout << oprnd->getRepr();
+        }
         if (fun == "println") std::cout << "\n";
         return oprnd;
       }
@@ -382,7 +386,6 @@ ASTNode* eval_tree(ASTNode* node) {
     }
     unbind_arguments(lambda);
     return result;
-
   } else if (node->type() == ASTNodeType::Symbol) {
     if (node->getRepr() == "#fail") {
       throw ParseError("Exception thrown!");

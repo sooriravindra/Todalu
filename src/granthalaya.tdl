@@ -1,3 +1,10 @@
+# Redefine internal functions as lambda
+(def print (lambda x (print x)))
+(def println (lambda x (println x)))
+(def car (lambda x (car x)))
+(def cdr (lambda x (cdr x)))
+(def > (lambda (x y) (> x y)))
+# New functions
 (def t (eq? 1 1))
 (def nil (eq? 1 0))
 (def and (lambda (x y) (if x (if y t nil) nil)))
@@ -9,3 +16,5 @@
 (def empty? (lambda x (if (not (list? x)) #fail (if x nil t))))
 (def map (lambda (fn in) (if (not (list? in)) #fail  (if (empty? in) in (cons (fn (car in)) (map fn (cdr in)))))))
 (def filter (lambda (fn in) (if (not (list? in)) #fail  (if (empty? in) in (if (fn (car in)) (cons (car in) (filter fn (cdr in))) (filter fn (cdr in)))))))
+(def range (lambda (curr till ) (if (< curr till) (cons curr (range (+ curr 1) till)) (quote ()))))
+(def % (lambda (x y) (if (and (int? x) (int? y)) (- x (* y (/ x y))) #fail)))
