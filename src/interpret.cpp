@@ -59,6 +59,16 @@ std::list<ASTNode*> create_ast(std::list<std::string>& tokens,
     } else if (t == ")") {
       if (not closing_paren_allow) throw ParseError("Unexpected ')'");
       return ret;
+    } else if (t.starts_with("\"")) {
+      std::string str = t;
+      while (!t.ends_with("\"")) {
+        if (!tokens.size()) throw ParseError("Unmatched '\"'");
+        t = tokens.front();
+        tokens.pop_front();
+        str += " ";
+        str += t;
+      }
+      node = new StringNode(str.substr(1, str.length() - 2));
     } else if (is_int(t)) {
       node = new IntegerNode(std::stoi(t));
     } else if (is_float(t)) {
@@ -139,6 +149,7 @@ void unbind_arguments(LambdaNode* lambda) {
 ASTNode* eval_tree(ASTNode* node) {
   if (node->type() == ASTNodeType::List) {
     auto listnode = dynamic_cast<ListNode*>(node);
+    if (listnode->list.size() == 0) throw ParseError("Can't evaluate ()");
     if (listnode->list.front()->type() == ASTNodeType::Symbol) {
       auto fun = dynamic_cast<SymbolNode*>(listnode->list.front())->symbol;
 
@@ -239,6 +250,15 @@ ASTNode* eval_tree(ASTNode* node) {
           it++;
         }
         return ret;
+      }
+
+      if (fun == "print" || fun == "println") {
+        if (listnode->list.size() != 2)
+          throw ParseError("print expects one argument");
+        auto oprnd = eval_tree(listnode->list.back());
+        std::cout << oprnd->getRepr();
+        if (fun == "println") std::cout << "\n";
+        return oprnd;
       }
 
       if (fun == "quote") {

@@ -1,7 +1,7 @@
 #include <list>
 #include <string>
 
-enum class ASTNodeType { Bool, Integer, Decimal, Symbol, List, Lambda };
+enum class ASTNodeType { Bool, Integer, Decimal, Symbol, List, Lambda, String };
 
 class ASTNode {
  public:
@@ -38,6 +38,15 @@ class DecimalNode : public ASTNode {
   bool getBool() { return (value != 0); }
   std::string getRepr() { return std::to_string(value); }
   float value = 0;
+};
+
+class StringNode : public ASTNode {
+ public:
+  StringNode(std::string v) : value(v) {}
+  ASTNodeType type() { return ASTNodeType::String; }
+  bool getBool() { return !value.empty(); }
+  std::string getRepr() { return value; }
+  std::string value = "";
 };
 
 class SymbolNode : public ASTNode {
