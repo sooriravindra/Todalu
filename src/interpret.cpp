@@ -273,6 +273,7 @@ ASTNode* eval_tree(ASTNode* node) {
           throw ParseError("cdr expects argument of type list");
 
         auto ret = dynamic_cast<ListNode*>(oprnd)->list;
+        if (ret.size() == 0) throw ParseError("cdr called on an empty list");
         ret.pop_front();
         return new ListNode(ret);
       }
