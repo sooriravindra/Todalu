@@ -45,39 +45,6 @@ float get_float(const std::string& input) {
   return value;
 }
 
-int get_bool(const std::string& input) {
-  if (input == "t") return 1;
-  if (input == "nil") return 0;
-  return -1;
-}
-
-#if 0
-std::string get_repr(std::list<ASTNode>& ast) {
-  std::string res = "";
-  auto it = ast.begin();
-  while (it != ast.end()) {
-    switch (it->type) {
-    case ASTNodeType::Integer:
-    case ASTNodeType::Decimal:
-    case ASTNodeType::Symbol:
-      res += it->repr;
-      res += " ";
-      break;
-    case ASTNodeType::List:
-      res += "( ";
-      res += get_repr(it->list);
-      res += ") ";
-      break;
-    case ASTNodeType::Lambda:
-      res += "$lambda$ ";
-      break;
-    }
-    it++;
-  }
-  return res;
-}
-#endif
-
 std::list<ASTNode*> create_ast(std::list<std::string>& tokens,
                                bool closing_paren_allow = false) {
   std::list<ASTNode*> ret;
@@ -96,9 +63,8 @@ std::list<ASTNode*> create_ast(std::list<std::string>& tokens,
       node = new IntegerNode(std::stoi(t));
     } else if (is_float(t)) {
       node = new DecimalNode(get_float(t));
-    } else if (get_bool(t) != -1) {
-      node = new BoolNode(get_bool(t) == 1);
     } else {
+      // Handle bool in granthalaya, symbol for now
       node = new SymbolNode(t);
     }
     ret.push_back(node);
@@ -274,7 +240,7 @@ ASTNode* eval_tree(ASTNode* node) {
         }
         return ret;
       }
-                          
+
       if (fun == "quote") {
         if (listnode->list.size() != 2)
           throw ParseError("quote expects one argument");
@@ -346,12 +312,13 @@ ASTNode* eval_tree(ASTNode* node) {
       }
 
       if (fun == "def") {
-        listnode->list.pop_front();
-        if (listnode->list.size() != 2)
+        if (listnode->list.size() != 3)
           throw ParseError("def expects two arguments");
-        if (listnode->list.front()->type() != ASTNodeType::Symbol)
-          throw ParseError("def expects first argument to be symbol");
-        auto sym = listnode->list.front();
+        auto sym = *(std::next(listnode->list.begin()));
+        if (sym->type() != ASTNodeType::Symbol)
+          throw ParseError(
+              std::string("def expects first argument to be symbol. Found ") +
+              sym->getRepr());
         auto value = eval_tree(listnode->list.back());
         gEnv[sym->getRepr()].push_front(value);
         return value;

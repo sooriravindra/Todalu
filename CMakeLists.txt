@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.1)
 project(Todalu)
 
-include_directories(/usr/include/readline src/include)
 file(GLOB SRC_FILES src/*.cpp)
 file(GLOB HEADER_FILES src/include/*.h)
 
@@ -10,7 +9,18 @@ set(CMAKE_CXX_STANDARD 20)
 
 # Clang format
 add_custom_target(format COMMAND clang-format 
-  -style=Google -i ${SRC_FILES} ${HEADER_FILES})
+-style=Google -i ${SRC_FILES} ${HEADER_FILES})
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/granthalaya.tdl ${CMAKE_BINARY_DIR}/granthalaya.tdl COPYONLY)
+add_custom_command(
+OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/granthalaya.h
+COMMAND xxd ARGS -i granthalaya.tdl granthalaya.h
+DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/granthalaya.tdl
+VERBATIM
+)
+
+set_property(SOURCE src/repl.cpp APPEND PROPERTY OBJECT_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/granthalaya.h)
+include_directories(/usr/include/readline src/include ${CMAKE_CURRENT_BINARY_DIR})
 
 add_executable(todalu ${SRC_FILES})
 target_link_libraries(todalu readline)

@@ -16,8 +16,8 @@ class BoolNode : public ASTNode {
   ASTNodeType type() { return ASTNodeType::Bool; }
   bool getBool() { return value; }
   std::string getRepr() {
-    if (value) return "t";
-    return "nil";
+    if (value) return "#true";
+    return "#false";
   }
   bool value = false;
 };
