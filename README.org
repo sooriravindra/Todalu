@@ -28,7 +28,7 @@ Todalu (Kannada for Lisp), is my attempt to write an interpreter for a lisp like
 
 
 ** Sample interaction
-
+#+begin_src
 $ ./todalu
 todalu> (+ 20 22)
 => 42
@@ -47,3 +47,4 @@ todalu> (range 1 6)
 todalu> (filter is-odd (range 1 11))
 => ( 1 3 5 7 9 )
 todalu>
+#+end_src
