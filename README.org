@@ -4,25 +4,46 @@
 
 Todalu (Kannada for Lisp), is my attempt to write an interpreter for a lisp like language.
 
-** Tentative features
+** Build
+#+begin_src sh
+  git clone https://github.com/sooriravindra/todalu.git
+  mkdir todalu/build; cd todalu/build
+  cmake ..
+  cmake --build .
+#+end_src
 
-|------------------------------+---------|
-| Expression                   |  Result |
-|------------------------------+---------|
-| 1                            |       1 |
-| (+ 1 1)                      |       2 |
-| (* (/ 10 2) 3)               |      15 |
-| ((lambda (x) (* x 2)) 10)    |      20 |
-| (define id (lambda (x) (x))) |       - |
-| (id 10)                      |      10 |
-| (quote (+ 1 2)               | (+ 1 2) |
-| (car (quote (1 2 3)))        |       1 |
-| (cdr (quote (1 2 3)))        |   (2 3) |
-| (define var 19)              |       - |
-| var                          |      19 |
-| (if (- 1 1) 3 10)            |      10 |
-| (eq? var 19)                 |       1 |
-| (> 10 12)                    |       0 |
-| (< 8 19)                     |       1 |
-| (not 12)                     |       0 |
-|------------------------------+---------|
+** Install and run
+#+begin_src sh
+
+  ./todalu # Interactive
+  ./todalu ../testscripts/hello-world.tdl
+
+  #Alternatively, copy todalu to $PATH
+
+  sudo ln -s /usr/bin/todalu $(readlink -f todalu) # Step 1:  setup todalu
+  todalu # To run an interactive session
+  ../testscripts/hello-world.tdl # To run a script (Check shebang if it doesn't work)
+
+#+end_src
+
+
+** Sample interaction
+
+$ ./todalu
+todalu> (+ 20 22)
+=> 42
+todalu> (- (* 50 2) (/ 40 2) 30)
+=> 50
+todalu> (def myvar (+ 1 2 3))
+=> 6
+todalu> (def is-odd (lambda x (eq? (% x 2) 1)))
+=> <lambda=94877095594064>
+todalu>
+todalu> (if (is-odd myvar) (println "That's odd") (println "All good"))
+All good
+=> "All good"
+todalu> (range 1 6)
+=> ( 1 2 3 4 5 )
+todalu> (filter is-odd (range 1 11))
+=> ( 1 3 5 7 9 )
+todalu>

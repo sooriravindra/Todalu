@@ -7,6 +7,8 @@
 
 #include "ast.h"
 
+ASTNode* eval_tree(ASTNode* node);
+
 std::map<std::string, std::list<ASTNode*>> gEnv;
 
 std::list<std::string> tokenizer(std::string& str) {
@@ -83,7 +85,6 @@ std::list<ASTNode*> create_ast(std::list<std::string>& tokens,
   return ret;
 }
 
-ASTNode* eval_tree(ASTNode* node);
 void operate_on_node(ASTNode* node, char op, float& acc, bool& is_all_int) {
   auto operation = [](float a, float b, char op) {
     switch (op) {
@@ -109,7 +110,8 @@ void operate_on_node(ASTNode* node, char op, float& acc, bool& is_all_int) {
       is_all_int = false;
       break;
     default:
-      throw ParseError("Unsuitable operands to operator");
+      throw ParseError("Unsuitable operand to operator : " +
+                       operand->getRepr());
   }
 }
 
@@ -123,7 +125,8 @@ void bind_arguments(LambdaNode* lambda, ListNode* listnode) {
     auto itarg =
         std::next(listnode->list.begin());  // 1st node in list is lambda
     while (it != itend) {
-      gEnv[(*it)->getRepr()].push_front(eval_tree(*itarg));
+      auto arg = eval_tree(*itarg);
+      gEnv[(*it)->getRepr()].push_front(arg);
       it++;
       itarg++;
     }
@@ -147,257 +150,263 @@ void unbind_arguments(LambdaNode* lambda) {
 }
 
 ASTNode* eval_tree(ASTNode* node) {
-  if (node->type() == ASTNodeType::List) {
-    auto listnode = dynamic_cast<ListNode*>(node);
-    if (listnode->list.size() == 0) throw ParseError("Can't evaluate ()");
-    if (listnode->list.front()->type() == ASTNodeType::Symbol) {
-      auto fun = dynamic_cast<SymbolNode*>(listnode->list.front())->symbol;
+  try {
+    if (node->type() == ASTNodeType::List) {
+      auto listnode = dynamic_cast<ListNode*>(node);
+      if (listnode->list.size() == 0) throw ParseError("Can't evaluate ()");
+      if (listnode->list.front()->type() == ASTNodeType::Symbol) {
+        auto fun = dynamic_cast<SymbolNode*>(listnode->list.front())->symbol;
 
-      if (fun == "+" || fun == "-" || fun == "*" || fun == "/") {
-        auto it = listnode->list.begin();
-        it++;
-        if (listnode->list.size() < 3)
-          throw ParseError("Needs atleast 2 operands");
-        float acc = (fun[0] == '*') ? 1 : 0;
-        bool is_all_int = true;
-        if (fun == "-" || fun == "/") {
-          operate_on_node(*it, '+', acc, is_all_int);
+        if (fun == "+" || fun == "-" || fun == "*" || fun == "/") {
+          auto it = listnode->list.begin();
           it++;
-        }
-        while (it != listnode->list.end()) {
-          operate_on_node(*it, fun[0], acc, is_all_int);
-          it++;
-        }
-        if (is_all_int) return new IntegerNode(acc);
-        return new DecimalNode(acc);
-      }
-
-      if (fun == "eq?") {
-        if (listnode->list.size() != 3)
-          throw ParseError("eq? expects two arguments");
-
-        auto oprnd1 = eval_tree(*(std::next(listnode->list.begin())));
-        auto oprnd2 = eval_tree(listnode->list.back());
-
-        bool res = false;
-        if (oprnd1->type() == oprnd2->type() &&
-            ((oprnd1->type() == ASTNodeType::Integer &&
-              (dynamic_cast<IntegerNode*>(oprnd1)->value ==
-               dynamic_cast<IntegerNode*>(oprnd2)->value)) ||
-             (oprnd1->type() == ASTNodeType::Decimal &&
-              (dynamic_cast<DecimalNode*>(oprnd1)->value ==
-               dynamic_cast<DecimalNode*>(oprnd2)->value))))
-          res = true;
-
-        return new BoolNode(res);
-      }
-
-      if (fun == "list?") {
-        if (listnode->list.size() != 2)
-          throw ParseError("list? expects one argument");
-        auto oprnd = eval_tree(listnode->list.back());
-        return new BoolNode(oprnd->type() == ASTNodeType::List);
-      }
-
-      if (fun == "int?") {
-        if (listnode->list.size() != 2)
-          throw ParseError("int? expects one argument");
-        auto oprnd = eval_tree(listnode->list.back());
-        return new BoolNode(oprnd->type() == ASTNodeType::Integer);
-      }
-
-      if (fun == "bool?") {
-        if (listnode->list.size() != 2)
-          throw ParseError("bool? expects one argument");
-        auto oprnd = eval_tree(listnode->list.back());
-        return new BoolNode(oprnd->type() == ASTNodeType::Bool);
-      }
-
-      if (fun == "dec?") {
-        if (listnode->list.size() != 2)
-          throw ParseError("dec? expects one argument");
-        auto oprnd = eval_tree(listnode->list.back());
-        return new BoolNode(oprnd->type() == ASTNodeType::Decimal);
-      }
-
-      if (fun == ">") {
-        if (listnode->list.size() != 3)
-          throw ParseError("> expects two arguments");
-
-        auto oprnd1 = eval_tree(*(std::next(listnode->list.begin())));
-        auto oprnd2 = eval_tree(listnode->list.back());
-
-        bool res = false;
-        if (oprnd1->type() == oprnd2->type() &&
-            ((oprnd1->type() == ASTNodeType::Integer &&
-              (dynamic_cast<IntegerNode*>(oprnd1)->value >
-               dynamic_cast<IntegerNode*>(oprnd2)->value)) ||
-             (oprnd1->type() == ASTNodeType::Decimal &&
-              (dynamic_cast<DecimalNode*>(oprnd1)->value >
-               dynamic_cast<DecimalNode*>(oprnd2)->value))))
-          res = true;
-
-        return new BoolNode(res);
-      }
-
-      if (fun == "progn") {
-        if (listnode->list.size() < 2)
-          throw ParseError("progn expects atleast one element");
-        auto it = std::next(listnode->list.begin());
-        ASTNode* ret = nullptr;
-        while (it != listnode->list.end()) {
-          ret = eval_tree(*it);
-          it++;
-        }
-        return ret;
-      }
-
-      if (fun == "print" || fun == "println") {
-        if (listnode->list.size() != 2)
-          throw ParseError("print expects one argument");
-        auto oprnd = eval_tree(listnode->list.back());
-        if (oprnd->type() == ASTNodeType::String) {
-          std::cout << dynamic_cast<StringNode*>(oprnd)->value;
-        } else {
-          std::cout << oprnd->getRepr();
-        }
-        if (fun == "println") std::cout << "\n";
-        return oprnd;
-      }
-
-      if (fun == "quote") {
-        if (listnode->list.size() != 2)
-          throw ParseError("quote expects one argument");
-        return listnode->list.back();
-      }
-
-      if (fun == "eval") {
-        if (listnode->list.size() != 2)
-          throw ParseError("eval expects one argument");
-        return eval_tree(
-            eval_tree(listnode->list.back()));  // Once to get the operand,
-                                                // second actually evaluates
-      }
-
-      if (fun == "car") {
-        if (listnode->list.size() != 2)
-          throw ParseError("car expects one argument");
-        auto oprnd = eval_tree(listnode->list.back());
-        if (oprnd->type() != ASTNodeType::List)
-          throw ParseError("car expects argument of type list");
-        // TODO free memory here?
-        return dynamic_cast<ListNode*>(oprnd)->list.front();
-      }
-
-      if (fun == "cdr") {
-        if (listnode->list.size() != 2)
-          throw ParseError("cdr expects one argument");
-        auto oprnd = eval_tree(listnode->list.back());
-        if (oprnd->type() != ASTNodeType::List)
-          throw ParseError("cdr expects argument of type list");
-
-        auto ret = dynamic_cast<ListNode*>(oprnd)->list;
-        if (ret.size() == 0) throw ParseError("cdr called on an empty list");
-        ret.pop_front();
-        return new ListNode(ret);
-      }
-
-      if (fun == "cons") {
-        if (listnode->list.size() != 3)
-          throw ParseError("cons expects two arguments");
-        auto oprnd1 = eval_tree(*(std::next(listnode->list.begin())));
-        auto oprnd2 = eval_tree(listnode->list.back());
-        if (oprnd2->type() != ASTNodeType::List)
-          throw ParseError("cons expects second argument of type list");
-
-        auto ret = dynamic_cast<ListNode*>(oprnd2)->list;
-        ret.push_front(oprnd1);
-        return new ListNode(ret);
-      }
-
-      if (fun == "lambda") {
-        if (listnode->list.size() != 3)
-          throw ParseError("lambda syntax incorrect");
-        auto arglist = *std::next(listnode->list.begin());
-        auto body = listnode->list.back();
-
-        if (arglist->type() == ASTNodeType::List) {
-          auto l = dynamic_cast<ListNode*>(arglist)->list.begin();
-          while (l != dynamic_cast<ListNode*>(arglist)->list.end()) {
-            if ((*l)->type() != ASTNodeType::Symbol)
-              throw ParseError("lambda argument list has non-symbol");
-            l++;
+          if (listnode->list.size() < 3)
+            throw ParseError("Needs atleast 2 operands");
+          float acc = (fun[0] == '*') ? 1 : 0;
+          bool is_all_int = true;
+          if (fun == "-" || fun == "/") {
+            operate_on_node(*it, '+', acc, is_all_int);
+            it++;
           }
-        } else if (arglist->type() != ASTNodeType::Symbol) {
-          throw ParseError("lambda argument has non-symbol");
+          while (it != listnode->list.end()) {
+            operate_on_node(*it, fun[0], acc, is_all_int);
+            it++;
+          }
+          if (is_all_int) return new IntegerNode(acc);
+          return new DecimalNode(acc);
         }
 
-        auto lambdanode = new LambdaNode(arglist, body);
-        return lambdanode;
-      }
+        if (fun == "eq?") {
+          if (listnode->list.size() != 3)
+            throw ParseError("eq? expects two arguments");
 
-      if (fun == "def") {
-        if (listnode->list.size() != 3)
-          throw ParseError("def expects two arguments");
-        auto sym = *(std::next(listnode->list.begin()));
-        if (sym->type() != ASTNodeType::Symbol)
-          throw ParseError(
-              std::string("def expects first argument to be symbol. Found ") +
-              sym->getRepr());
-        auto value = eval_tree(listnode->list.back());
-        gEnv[sym->getRepr()].push_front(value);
-        return value;
-      }
+          auto oprnd1 = eval_tree(*(std::next(listnode->list.begin())));
+          auto oprnd2 = eval_tree(listnode->list.back());
 
-      if (fun == "if") {
-        if (listnode->list.size() != 4)
-          throw ParseError("if expects cond,body and else parts");
-        auto predicate = eval_tree(*(std::next(listnode->list.begin())));
-        auto body = *(std::next(std::next(listnode->list.begin())));
-        if (predicate->getBool() == false) {
-          body = listnode->list.back();
+          bool res = false;
+          if (oprnd1->type() == oprnd2->type() &&
+              ((oprnd1->type() == ASTNodeType::Integer &&
+                (dynamic_cast<IntegerNode*>(oprnd1)->value ==
+                 dynamic_cast<IntegerNode*>(oprnd2)->value)) ||
+               (oprnd1->type() == ASTNodeType::Decimal &&
+                (dynamic_cast<DecimalNode*>(oprnd1)->value ==
+                 dynamic_cast<DecimalNode*>(oprnd2)->value))))
+            res = true;
+
+          return new BoolNode(res);
         }
-        return eval_tree(body);
+
+        if (fun == "list?") {
+          if (listnode->list.size() != 2)
+            throw ParseError("list? expects one argument");
+          auto oprnd = eval_tree(listnode->list.back());
+          return new BoolNode(oprnd->type() == ASTNodeType::List);
+        }
+
+        if (fun == "int?") {
+          if (listnode->list.size() != 2)
+            throw ParseError("int? expects one argument");
+          auto oprnd = eval_tree(listnode->list.back());
+          return new BoolNode(oprnd->type() == ASTNodeType::Integer);
+        }
+
+        if (fun == "bool?") {
+          if (listnode->list.size() != 2)
+            throw ParseError("bool? expects one argument");
+          auto oprnd = eval_tree(listnode->list.back());
+          return new BoolNode(oprnd->type() == ASTNodeType::Bool);
+        }
+
+        if (fun == "dec?") {
+          if (listnode->list.size() != 2)
+            throw ParseError("dec? expects one argument");
+          auto oprnd = eval_tree(listnode->list.back());
+          return new BoolNode(oprnd->type() == ASTNodeType::Decimal);
+        }
+
+        if (fun == ">") {
+          if (listnode->list.size() != 3)
+            throw ParseError("> expects two arguments");
+
+          auto oprnd1 = eval_tree(*(std::next(listnode->list.begin())));
+          auto oprnd2 = eval_tree(listnode->list.back());
+
+          bool res = false;
+          if (oprnd1->type() == oprnd2->type() &&
+              ((oprnd1->type() == ASTNodeType::Integer &&
+                (dynamic_cast<IntegerNode*>(oprnd1)->value >
+                 dynamic_cast<IntegerNode*>(oprnd2)->value)) ||
+               (oprnd1->type() == ASTNodeType::Decimal &&
+                (dynamic_cast<DecimalNode*>(oprnd1)->value >
+                 dynamic_cast<DecimalNode*>(oprnd2)->value))))
+            res = true;
+
+          return new BoolNode(res);
+        }
+
+        if (fun == "progn") {
+          if (listnode->list.size() < 2)
+            throw ParseError("progn expects atleast one element");
+          auto it = std::next(listnode->list.begin());
+          ASTNode* ret = nullptr;
+          while (it != listnode->list.end()) {
+            ret = eval_tree(*it);
+            it++;
+          }
+          return ret;
+        }
+
+        if (fun == "print" || fun == "println") {
+          if (listnode->list.size() != 2)
+            throw ParseError("print expects one argument");
+          auto oprnd = eval_tree(listnode->list.back());
+          if (oprnd->type() == ASTNodeType::String) {
+            std::cout << dynamic_cast<StringNode*>(oprnd)->value;
+          } else {
+            std::cout << oprnd->getRepr();
+          }
+          if (fun == "println") std::cout << "\n";
+          return oprnd;
+        }
+
+        if (fun == "quote") {
+          if (listnode->list.size() != 2)
+            throw ParseError("quote expects one argument");
+          return listnode->list.back();
+        }
+
+        if (fun == "eval") {
+          if (listnode->list.size() != 2)
+            throw ParseError("eval expects one argument");
+          return eval_tree(
+              eval_tree(listnode->list.back()));  // Once to get the operand,
+          // second actually evaluates
+        }
+
+        if (fun == "car") {
+          if (listnode->list.size() != 2)
+            throw ParseError("car expects one argument");
+          auto oprnd = eval_tree(listnode->list.back());
+          if (oprnd->type() != ASTNodeType::List)
+            throw ParseError("car expects argument of type list");
+          // TODO free memory here?
+          return dynamic_cast<ListNode*>(oprnd)->list.front();
+        }
+
+        if (fun == "cdr") {
+          if (listnode->list.size() != 2)
+            throw ParseError("cdr expects one argument");
+          auto oprnd = eval_tree(listnode->list.back());
+          if (oprnd->type() != ASTNodeType::List)
+            throw ParseError("cdr expects argument of type list");
+
+          auto ret = dynamic_cast<ListNode*>(oprnd)->list;
+          if (ret.size() == 0) throw ParseError("cdr called on an empty list");
+          ret.pop_front();
+          return new ListNode(ret);
+        }
+
+        if (fun == "cons") {
+          if (listnode->list.size() != 3)
+            throw ParseError("cons expects two arguments");
+          auto oprnd1 = eval_tree(*(std::next(listnode->list.begin())));
+          auto oprnd2 = eval_tree(listnode->list.back());
+          if (oprnd2->type() != ASTNodeType::List)
+            throw ParseError("cons expects second argument of type list");
+
+          auto ret = dynamic_cast<ListNode*>(oprnd2)->list;
+          ret.push_front(oprnd1);
+          return new ListNode(ret);
+        }
+
+        if (fun == "lambda") {
+          if (listnode->list.size() != 3)
+            throw ParseError("lambda syntax incorrect");
+          auto arglist = *std::next(listnode->list.begin());
+          auto body = listnode->list.back();
+
+          if (arglist->type() == ASTNodeType::List) {
+            auto l = dynamic_cast<ListNode*>(arglist)->list.begin();
+            while (l != dynamic_cast<ListNode*>(arglist)->list.end()) {
+              if ((*l)->type() != ASTNodeType::Symbol)
+                throw ParseError("lambda argument list has non-symbol");
+              l++;
+            }
+          } else if (arglist->type() != ASTNodeType::Symbol) {
+            throw ParseError("lambda argument has non-symbol");
+          }
+
+          auto lambdanode = new LambdaNode(arglist, body);
+          return lambdanode;
+        }
+
+        if (fun == "def") {
+          if (listnode->list.size() != 3)
+            throw ParseError("def expects two arguments");
+          auto sym = *(std::next(listnode->list.begin()));
+          if (sym->type() != ASTNodeType::Symbol)
+            throw ParseError(
+                std::string("def expects first argument to be symbol. Found ") +
+                sym->getRepr());
+          auto value = eval_tree(listnode->list.back());
+          gEnv[sym->getRepr()].push_front(value);
+          return value;
+        }
+
+        if (fun == "if") {
+          if (listnode->list.size() != 4)
+            throw ParseError("if expects cond,body and else parts");
+          auto predicate = eval_tree(*(std::next(listnode->list.begin())));
+          auto body = *(std::next(std::next(listnode->list.begin())));
+          if (predicate->getBool() == false) {
+            body = listnode->list.back();
+          }
+          return eval_tree(body);
+        }
       }
-    }
-    // Treat this as lambda and try to execute
-    auto lambda_candidate = eval_tree(listnode->list.front());
-    if (lambda_candidate->type() != ASTNodeType::Lambda)
-      throw ParseError(std::string("Invalid function : ") +
-                       lambda_candidate->getRepr());
+      // Treat this as lambda and try to execute
+      auto lambda_candidate = eval_tree(listnode->list.front());
+      if (lambda_candidate->type() != ASTNodeType::Lambda)
+        throw ParseError(std::string("Invalid function : ") +
+                         lambda_candidate->getRepr());
 
-    auto lambda = dynamic_cast<LambdaNode*>(lambda_candidate);
+      auto lambda = dynamic_cast<LambdaNode*>(lambda_candidate);
 
-    if ((lambda->arglist->type() == ASTNodeType::Symbol &&
-         listnode->list.size() != 2) ||
-        (lambda->arglist->type() == ASTNodeType::List &&
-         listnode->list.size() !=
-             dynamic_cast<ListNode*>(lambda->arglist)->list.size() + 1)) {
-      throw ParseError("lambda argument count mismatch");
-    }
+      if ((lambda->arglist->type() == ASTNodeType::Symbol &&
+           listnode->list.size() != 2) ||
+          (lambda->arglist->type() == ASTNodeType::List &&
+           listnode->list.size() !=
+               dynamic_cast<ListNode*>(lambda->arglist)->list.size() + 1)) {
+        throw ParseError("lambda argument count mismatch");
+      }
 
-    bind_arguments(lambda, listnode);
-    ASTNode* result = nullptr;
-    try {
-      result = eval_tree(lambda->body);
-    } catch (...) {
+      bind_arguments(lambda, listnode);
+      ASTNode* result = nullptr;
+      try {
+        result = eval_tree(lambda->body);
+      } catch (...) {
+        unbind_arguments(lambda);
+        throw;
+      }
       unbind_arguments(lambda);
-      throw;
+      return result;
+    } else if (node->type() == ASTNodeType::Symbol) {
+      if (node->getRepr() == "#fail") {
+        throw ParseError("Exception thrown!");
+      }
+      auto pair = gEnv.find(node->getRepr());
+      if (pair != gEnv.end()) {
+        return pair->second.front();  // second is list of possible values
+      } else {
+        throw ParseError(std::string("Undefined symbol : ") + node->getRepr());
+      }
     }
-    unbind_arguments(lambda);
-    return result;
-  } else if (node->type() == ASTNodeType::Symbol) {
-    if (node->getRepr() == "#fail") {
-      throw ParseError("Exception thrown!");
-    }
-    auto pair = gEnv.find(node->getRepr());
-    if (pair != gEnv.end()) {
-      return pair->second.front();  // second is list of possible values
-    } else {
-      throw ParseError(std::string("Undefined symbol : ") + node->getRepr());
-    }
+    return node;
+  } catch (...) {
+    std::cerr << "Error encountered while operating on : " + node->getRepr()
+              << std::endl;
+    throw;
   }
-  return node;
 }
 
 bool is_comment(std::string& line) {

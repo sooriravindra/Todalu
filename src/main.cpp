@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
     }
     std::string source;
     while (std::getline(f, source)) {
-      std::cout << interpret_line(source);
+      interpret_line(source);
     }
   } else {
     run_repl();

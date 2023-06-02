@@ -12,7 +12,7 @@ void run_repl() {
     curr_prompt = red_prompt;
     try {
       auto res = interpret_line(line);
-      std::cout << "=> " << res;
+      if (!res.empty()) std::cout << "=> " << res;
       curr_prompt = green_prompt;
     } catch (ParseError& e) {
       std::cerr << "Parse error: " << e.what() << std::endl;

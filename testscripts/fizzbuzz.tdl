@@ -1,0 +1,4 @@
+#!/usr/bin/env todalu
+# ^ May have to fix the path
+(def fzbz (lambda y (if (eq? (% y 15) 0) "FizzBuzz" (if (eq? (% y 5) 0) "Buzz" (if (eq? (% y 3) 0) "Fizz" y)))))
+(map println (map fzbz (range 1 101)))
