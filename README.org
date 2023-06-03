@@ -6,8 +6,8 @@ Todalu (Kannada for Lisp), is my attempt to write an interpreter for a lisp like
 
 ** Build
 #+begin_src sh
-  git clone https://github.com/sooriravindra/todalu.git
-  mkdir todalu/build; cd todalu/build
+  git clone https://github.com/sooriravindra/Todalu.git
+  mkdir Todalu/build; cd Todalu/build
   cmake ..
   cmake --build .
 #+end_src
