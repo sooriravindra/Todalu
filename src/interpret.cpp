@@ -120,15 +120,20 @@ void bind_arguments(LambdaNode* lambda, ListNode* listnode) {
     auto arg = eval_tree(listnode->list.back());  // there is only 1 arg
     gEnv[lambda->arglist->getRepr()].push_front(arg);
   } else if (lambda->arglist->type() == ASTNodeType::List) {
-    auto it = dynamic_cast<ListNode*>(lambda->arglist)->list.begin();
-    auto itend = dynamic_cast<ListNode*>(lambda->arglist)->list.end();
+    std::list<ASTNode*> argvalues;
     auto itarg =
         std::next(listnode->list.begin());  // 1st node in list is lambda
-    while (it != itend) {
-      auto arg = eval_tree(*itarg);
-      gEnv[(*it)->getRepr()].push_front(arg);
-      it++;
+    while (itarg != listnode->list.end()) {
+      argvalues.push_back(eval_tree(*itarg));
       itarg++;
+    }
+    auto itname = dynamic_cast<ListNode*>(lambda->arglist)->list.begin();
+    auto itnameend = dynamic_cast<ListNode*>(lambda->arglist)->list.end();
+    auto itvalue = argvalues.begin();
+    while (itname != itnameend) {
+      gEnv[(*itname)->getRepr()].push_front(*itvalue);
+      itname++;
+      itvalue++;
     }
   }
 }
