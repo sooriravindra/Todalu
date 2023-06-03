@@ -12,6 +12,7 @@ ASTNode* eval_tree(ASTNode* node);
 std::map<std::string, std::list<ASTNode*>> gEnv;
 
 std::list<std::string> tokenizer(std::string& str) {
+  str = std::regex_replace(str, std::regex("\n"), " ");
   str = std::regex_replace(str, std::regex("\\("), " ( ");
   str = std::regex_replace(str, std::regex("\\)"), " ) ");
   std::list<std::string> tokens;
