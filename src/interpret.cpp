@@ -312,6 +312,7 @@ ASTNode* eval_tree(ASTNode* node) {
           if (oprnd->type() != ASTNodeType::List)
             throw ParseError("cdr expects argument of type list");
 
+          delete dynamic_cast<ListNode*>(oprnd)->list.front();
           dynamic_cast<ListNode*>(oprnd)->list.pop_front();
           return oprnd;
         }
@@ -345,7 +346,7 @@ ASTNode* eval_tree(ASTNode* node) {
             throw ParseError("lambda argument has non-symbol");
           }
 
-          return new LambdaNode(arglist, body);
+          return new LambdaNode(arglist->deepCopy(), body->deepCopy());
         }
 
         if (fun == "def") {
@@ -429,6 +430,10 @@ bool is_comment(std::string& line) {
   return true;
 }
 
+void free_ast(std::list<ASTNode*>& list) {
+  for (auto node : list) delete node;
+}
+
 std::string interpret_line(std::string str) {
   if (is_comment(str)) return "";
   auto tokens = tokenizer(str);
@@ -440,5 +445,14 @@ std::string interpret_line(std::string str) {
     throw ParseError("Contains more than one node at the base");
 
   std::unique_ptr<ASTNode> result(eval_tree(ast.front()));
+
+  free_ast(ast);
+
   return result->getRepr() + "\n";
+}
+
+void free_env() {
+  for (auto p : gEnv) {
+    for (auto node : p.second) delete node;
+  }
 }
