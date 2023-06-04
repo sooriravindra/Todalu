@@ -8,3 +8,4 @@ class ParseError : public std::runtime_error {
 };
 
 std::string interpret_line(std::string str);
+void free_env();

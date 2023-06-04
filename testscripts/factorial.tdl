@@ -1,0 +1,5 @@
+#!/usr/bin/env todalu
+# ^ May have to fix the path
+(def fact (lambda x (if (< x 0) #exception (if (eq? x 0) 1 (* x (fact (- x 1)))))))
+(print "Enter number whose factorial will be returned: ")
+(println (fact (read)))

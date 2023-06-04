@@ -52,4 +52,5 @@ int main(int argc, char** argv) {
   } else {
     run_repl();
   }
+  free_env();
 }
