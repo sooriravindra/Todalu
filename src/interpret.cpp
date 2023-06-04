@@ -303,6 +303,13 @@ ASTNode* eval_tree(ASTNode* node) {
           return eval_tree(oprnd.get());  // actually evaluates
         }
 
+        if (fun == "exit") {
+          if (listnode->list.size() != 2 &&
+              listnode->list.back()->type() == ASTNodeType::Integer)
+            throw ParseError("exit takes one argument of type integer");
+          exit(dynamic_cast<IntegerNode*>(listnode->list.back())->value);
+        }
+
         if (fun == "readstr") {
           if (listnode->list.size() != 1)
             throw ParseError("read doesn't take arguments");
