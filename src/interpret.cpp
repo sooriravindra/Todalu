@@ -236,6 +236,13 @@ ASTNode* eval_tree(ASTNode* node) {
           return new BoolNode(oprnd->type() == ASTNodeType::Decimal);
         }
 
+        if (fun == "string?") {
+          if (listnode->list.size() != 2)
+            throw ParseError("string? expects one argument");
+          std::unique_ptr<ASTNode> oprnd(eval_tree(listnode->list.back()));
+          return new BoolNode(oprnd->type() == ASTNodeType::String);
+        }
+
         if (fun == ">") {
           if (listnode->list.size() != 3)
             throw ParseError("> expects two arguments");
@@ -294,6 +301,26 @@ ASTNode* eval_tree(ASTNode* node) {
             throw ParseError("eval expects one argument");
           std::unique_ptr<ASTNode> oprnd(eval_tree(listnode->list.back()));
           return eval_tree(oprnd.get());  // actually evaluates
+        }
+
+        if (fun == "readstr") {
+          if (listnode->list.size() != 1)
+            throw ParseError("read doesn't take arguments");
+          std::string s;
+          std::getline(std::cin, s);
+          return new StringNode(s);
+        }
+
+        if (fun == "read") {
+          if (listnode->list.size() != 1)
+            throw ParseError("read doesn't take arguments");
+          std::string s;
+          std::getline(std::cin, s);
+          auto tokens = tokenizer(s);
+          auto ast = create_ast(tokens);
+          if (ast.size() != 1)
+            throw ParseError("Contains more than one node at the base");
+          return ast.front();
         }
 
         if (fun == "car") {
@@ -402,7 +429,7 @@ ASTNode* eval_tree(ASTNode* node) {
       unbind_arguments(lambda);
       return result;
     } else if (node->type() == ASTNodeType::Symbol) {
-      if (node->getRepr() == "#fail") {
+      if (node->getRepr() == "#exception") {
         throw ParseError("Exception thrown!");
       }
       auto pair = gEnv.find(node->getRepr());
