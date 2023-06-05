@@ -346,9 +346,12 @@ ASTNode* eval_tree(ASTNode* node) {
         if (fun == "cdr") {
           if (listnode->list.size() != 2)
             throw TodaluException("cdr expects one argument");
+
           auto oprnd = eval_tree(listnode->list.back());
           if (oprnd->type() != ASTNodeType::List)
             throw TodaluException("cdr expects argument of type list");
+          if (!dynamic_cast<ListNode*>(oprnd)->list.size())
+            throw TodaluException("cdr expects a non-empty list");
 
           delete dynamic_cast<ListNode*>(oprnd)->list.front();
           dynamic_cast<ListNode*>(oprnd)->list.pop_front();
