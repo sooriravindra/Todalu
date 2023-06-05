@@ -51,7 +51,8 @@ float get_float(const std::string& input) {
 std::list<ASTNode*> create_ast(std::list<std::string>& tokens,
                                bool closing_paren_allow = false) {
   std::list<ASTNode*> ret;
-  if (tokens.empty()) throw ParseError("Unexpected EOF while reading input");
+  if (tokens.empty())
+    throw TodaluException("Unexpected EOF while reading input");
 
   while (tokens.size()) {
     std::string t = tokens.front();
@@ -60,12 +61,12 @@ std::list<ASTNode*> create_ast(std::list<std::string>& tokens,
     if (t == "(") {
       node = new ListNode(create_ast(tokens, true));
     } else if (t == ")") {
-      if (not closing_paren_allow) throw ParseError("Unexpected ')'");
+      if (not closing_paren_allow) throw TodaluException("Unexpected ')'");
       return ret;
     } else if (t.starts_with("\"")) {
       std::string str = t;
       while (!t.ends_with("\"")) {
-        if (!tokens.size()) throw ParseError("Unmatched '\"'");
+        if (!tokens.size()) throw TodaluException("Unmatched '\"'");
         t = tokens.front();
         tokens.pop_front();
         str += " ";
@@ -82,7 +83,7 @@ std::list<ASTNode*> create_ast(std::list<std::string>& tokens,
     }
     ret.push_back(node);
   }
-  if (closing_paren_allow) throw ParseError("Unmatched '('");
+  if (closing_paren_allow) throw TodaluException("Unmatched '('");
   return ret;
 }
 
@@ -113,8 +114,8 @@ void operate_on_node(ASTNode* node, char op, float& acc, bool& is_all_int) {
       is_all_int = false;
       break;
     default:
-      throw ParseError("Unsuitable operand to operator : " +
-                       operand->getRepr());
+      throw TodaluException("Unsuitable operand to operator : " +
+                            operand->getRepr());
   }
 }
 
@@ -164,7 +165,8 @@ ASTNode* eval_tree(ASTNode* node) {
   try {
     if (node->type() == ASTNodeType::List) {
       auto listnode = dynamic_cast<ListNode*>(node);
-      if (listnode->list.size() == 0) throw ParseError("Can't evaluate ()");
+      if (listnode->list.size() == 0)
+        throw TodaluException("Can't evaluate ()");
       if (listnode->list.front()->type() == ASTNodeType::Symbol) {
         auto fun = dynamic_cast<SymbolNode*>(listnode->list.front())->symbol;
 
@@ -172,7 +174,7 @@ ASTNode* eval_tree(ASTNode* node) {
           auto it = listnode->list.begin();
           it++;
           if (listnode->list.size() < 3)
-            throw ParseError("Needs atleast 2 operands");
+            throw TodaluException("Needs atleast 2 operands");
           float acc = (fun[0] == '*') ? 1 : 0;
           bool is_all_int = true;
           if (fun == "-" || fun == "/") {
@@ -189,7 +191,7 @@ ASTNode* eval_tree(ASTNode* node) {
 
         if (fun == "eq?") {
           if (listnode->list.size() != 3)
-            throw ParseError("eq? expects two arguments");
+            throw TodaluException("eq? expects two arguments");
 
           std::unique_ptr<ASTNode> oprnd1(
               eval_tree(*(std::next(listnode->list.begin()))));
@@ -210,42 +212,42 @@ ASTNode* eval_tree(ASTNode* node) {
 
         if (fun == "list?") {
           if (listnode->list.size() != 2)
-            throw ParseError("list? expects one argument");
+            throw TodaluException("list? expects one argument");
           std::unique_ptr<ASTNode> oprnd(eval_tree(listnode->list.back()));
           return new BoolNode(oprnd->type() == ASTNodeType::List);
         }
 
         if (fun == "int?") {
           if (listnode->list.size() != 2)
-            throw ParseError("int? expects one argument");
+            throw TodaluException("int? expects one argument");
           std::unique_ptr<ASTNode> oprnd(eval_tree(listnode->list.back()));
           return new BoolNode(oprnd->type() == ASTNodeType::Integer);
         }
 
         if (fun == "bool?") {
           if (listnode->list.size() != 2)
-            throw ParseError("bool? expects one argument");
+            throw TodaluException("bool? expects one argument");
           std::unique_ptr<ASTNode> oprnd(eval_tree(listnode->list.back()));
           return new BoolNode(oprnd->type() == ASTNodeType::Bool);
         }
 
         if (fun == "dec?") {
           if (listnode->list.size() != 2)
-            throw ParseError("dec? expects one argument");
+            throw TodaluException("dec? expects one argument");
           std::unique_ptr<ASTNode> oprnd(eval_tree(listnode->list.back()));
           return new BoolNode(oprnd->type() == ASTNodeType::Decimal);
         }
 
         if (fun == "string?") {
           if (listnode->list.size() != 2)
-            throw ParseError("string? expects one argument");
+            throw TodaluException("string? expects one argument");
           std::unique_ptr<ASTNode> oprnd(eval_tree(listnode->list.back()));
           return new BoolNode(oprnd->type() == ASTNodeType::String);
         }
 
         if (fun == ">") {
           if (listnode->list.size() != 3)
-            throw ParseError("> expects two arguments");
+            throw TodaluException("> expects two arguments");
 
           std::unique_ptr<ASTNode> oprnd1(
               eval_tree(*(std::next(listnode->list.begin()))));
@@ -266,7 +268,7 @@ ASTNode* eval_tree(ASTNode* node) {
 
         if (fun == "progn") {
           if (listnode->list.size() < 2)
-            throw ParseError("progn expects atleast one element");
+            throw TodaluException("progn expects atleast one element");
           auto it = std::next(listnode->list.begin());
           ASTNode* ret = nullptr;
           while (it != listnode->list.end()) {
@@ -279,7 +281,7 @@ ASTNode* eval_tree(ASTNode* node) {
 
         if (fun == "print" || fun == "println") {
           if (listnode->list.size() != 2)
-            throw ParseError("print expects one argument");
+            throw TodaluException("print expects one argument");
           auto oprnd = eval_tree(listnode->list.back());
           if (oprnd->type() == ASTNodeType::String) {
             std::cout << dynamic_cast<StringNode*>(oprnd)->value;
@@ -292,13 +294,13 @@ ASTNode* eval_tree(ASTNode* node) {
 
         if (fun == "quote") {
           if (listnode->list.size() != 2)
-            throw ParseError("quote expects one argument");
+            throw TodaluException("quote expects one argument");
           return listnode->list.back()->deepCopy();
         }
 
         if (fun == "eval") {
           if (listnode->list.size() != 2)
-            throw ParseError("eval expects one argument");
+            throw TodaluException("eval expects one argument");
           std::unique_ptr<ASTNode> oprnd(eval_tree(listnode->list.back()));
           return eval_tree(oprnd.get());  // actually evaluates
         }
@@ -306,13 +308,13 @@ ASTNode* eval_tree(ASTNode* node) {
         if (fun == "exit") {
           if (listnode->list.size() != 2 &&
               listnode->list.back()->type() == ASTNodeType::Integer)
-            throw ParseError("exit takes one argument of type integer");
+            throw TodaluException("exit takes one argument of type integer");
           exit(dynamic_cast<IntegerNode*>(listnode->list.back())->value);
         }
 
         if (fun == "readstr") {
           if (listnode->list.size() != 1)
-            throw ParseError("read doesn't take arguments");
+            throw TodaluException("read doesn't take arguments");
           std::string s;
           std::getline(std::cin, s);
           return new StringNode(s);
@@ -320,31 +322,33 @@ ASTNode* eval_tree(ASTNode* node) {
 
         if (fun == "read") {
           if (listnode->list.size() != 1)
-            throw ParseError("read doesn't take arguments");
+            throw TodaluException("read doesn't take arguments");
           std::string s;
           std::getline(std::cin, s);
           auto tokens = tokenizer(s);
           auto ast = create_ast(tokens);
           if (ast.size() != 1)
-            throw ParseError("Contains more than one node at the base");
+            throw TodaluException("Contains more than one node at the base");
           return ast.front();
         }
 
         if (fun == "car") {
           if (listnode->list.size() != 2)
-            throw ParseError("car expects one argument");
+            throw TodaluException("car expects one argument");
           std::unique_ptr<ASTNode> oprnd(eval_tree(listnode->list.back()));
           if (oprnd->type() != ASTNodeType::List)
-            throw ParseError("car expects argument of type list");
+            throw TodaluException("car expects argument of type list");
+          if (!dynamic_cast<ListNode*>(oprnd.get())->list.size())
+            throw TodaluException("car expects a non-empty list");
           return dynamic_cast<ListNode*>(oprnd.get())->list.front()->deepCopy();
         }
 
         if (fun == "cdr") {
           if (listnode->list.size() != 2)
-            throw ParseError("cdr expects one argument");
+            throw TodaluException("cdr expects one argument");
           auto oprnd = eval_tree(listnode->list.back());
           if (oprnd->type() != ASTNodeType::List)
-            throw ParseError("cdr expects argument of type list");
+            throw TodaluException("cdr expects argument of type list");
 
           delete dynamic_cast<ListNode*>(oprnd)->list.front();
           dynamic_cast<ListNode*>(oprnd)->list.pop_front();
@@ -353,11 +357,11 @@ ASTNode* eval_tree(ASTNode* node) {
 
         if (fun == "cons") {
           if (listnode->list.size() != 3)
-            throw ParseError("cons expects two arguments");
+            throw TodaluException("cons expects two arguments");
           auto oprnd1 = eval_tree(*(std::next(listnode->list.begin())));
           auto oprnd2 = eval_tree(listnode->list.back());
           if (oprnd2->type() != ASTNodeType::List)
-            throw ParseError("cons expects second argument of type list");
+            throw TodaluException("cons expects second argument of type list");
 
           dynamic_cast<ListNode*>(oprnd2)->list.push_front(oprnd1);
           return oprnd2;
@@ -365,7 +369,7 @@ ASTNode* eval_tree(ASTNode* node) {
 
         if (fun == "lambda") {
           if (listnode->list.size() != 3)
-            throw ParseError("lambda syntax incorrect");
+            throw TodaluException("lambda syntax incorrect");
           auto arglist = *std::next(listnode->list.begin());
           auto body = listnode->list.back();
 
@@ -373,11 +377,11 @@ ASTNode* eval_tree(ASTNode* node) {
             auto l = dynamic_cast<ListNode*>(arglist)->list.begin();
             while (l != dynamic_cast<ListNode*>(arglist)->list.end()) {
               if ((*l)->type() != ASTNodeType::Symbol)
-                throw ParseError("lambda argument list has non-symbol");
+                throw TodaluException("lambda argument list has non-symbol");
               l++;
             }
           } else if (arglist->type() != ASTNodeType::Symbol) {
-            throw ParseError("lambda argument has non-symbol");
+            throw TodaluException("lambda argument has non-symbol");
           }
 
           return new LambdaNode(arglist->deepCopy(), body->deepCopy());
@@ -385,10 +389,11 @@ ASTNode* eval_tree(ASTNode* node) {
 
         if (fun == "def") {
           if (listnode->list.size() != 3)
-            throw ParseError("def expects two arguments");
+            throw TodaluException("def expects two arguments");
           auto sym = *(std::next(listnode->list.begin()));
+          if (sym->type() == ASTNodeType::List) sym = eval_tree(sym);
           if (sym->type() != ASTNodeType::Symbol)
-            throw ParseError(
+            throw TodaluException(
                 std::string("def expects first argument to be symbol. Found ") +
                 sym->getRepr());
           auto value = eval_tree(listnode->list.back());
@@ -398,7 +403,7 @@ ASTNode* eval_tree(ASTNode* node) {
 
         if (fun == "if") {
           if (listnode->list.size() != 4)
-            throw ParseError("if expects cond,body and else parts");
+            throw TodaluException("if expects cond,body and else parts");
           std::unique_ptr<ASTNode> predicate(
               eval_tree(*(std::next(listnode->list.begin()))));
           auto body = *(std::next(std::next(listnode->list.begin())));
@@ -412,8 +417,8 @@ ASTNode* eval_tree(ASTNode* node) {
       std::unique_ptr<ASTNode> lambda_candidate(
           eval_tree(listnode->list.front()));
       if (lambda_candidate->type() != ASTNodeType::Lambda)
-        throw ParseError(std::string("Invalid function : ") +
-                         lambda_candidate->getRepr());
+        throw TodaluException(std::string("Invalid function : ") +
+                              lambda_candidate->getRepr());
 
       auto lambda = dynamic_cast<LambdaNode*>(lambda_candidate.get());
 
@@ -422,7 +427,7 @@ ASTNode* eval_tree(ASTNode* node) {
           (lambda->arglist->type() == ASTNodeType::List &&
            listnode->list.size() !=
                dynamic_cast<ListNode*>(lambda->arglist)->list.size() + 1)) {
-        throw ParseError("lambda argument count mismatch");
+        throw TodaluException("lambda argument count mismatch");
       }
 
       bind_arguments(lambda, listnode);
@@ -437,14 +442,15 @@ ASTNode* eval_tree(ASTNode* node) {
       return result;
     } else if (node->type() == ASTNodeType::Symbol) {
       if (node->getRepr() == "#exception") {
-        throw ParseError("Exception thrown!");
+        throw TodaluException("Exception thrown!");
       }
       auto pair = gEnv.find(node->getRepr());
       if (pair != gEnv.end()) {
         // pair->second is list of possible values
         return pair->second.front()->deepCopy();
       } else {
-        throw ParseError(std::string("Undefined symbol : ") + node->getRepr());
+        throw TodaluException(std::string("Undefined symbol : ") +
+                              node->getRepr());
       }
     }
     return node->deepCopy();
@@ -476,7 +482,7 @@ std::string interpret_line(std::string str) {
   if (ast.size() == 0) return "";
 
   if (ast.size() != 1)
-    throw ParseError("Contains more than one node at the base");
+    throw TodaluException("Contains more than one node at the base");
 
   std::unique_ptr<ASTNode> result(eval_tree(ast.front()));
 

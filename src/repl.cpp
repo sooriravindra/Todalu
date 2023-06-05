@@ -14,7 +14,7 @@ void run_repl() {
       auto res = interpret_line(line);
       if (!res.empty()) std::cout << "=> " << res;
       curr_prompt = green_prompt;
-    } catch (ParseError& e) {
+    } catch (TodaluException& e) {
       std::cerr << "Parse error: " << e.what() << std::endl;
     } catch (std::exception& e) {
       std::cerr << "Unknown error when interpreting line : " << e.what()
