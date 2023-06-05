@@ -1,9 +1,7 @@
 #!/usr/bin/env todalu
 # ^ May have to fix the path
-(def fib (lambda (a b count)
-           (if (<= count 0)
-               t
-               (progn
-                 (println a)
-                 (fib b (+ a b) (- count 1))))))
-(fib 0 1 20)
+(def fib (lambda (n)
+           (if (< n 2)
+               n
+               (+ (fib (- n 1)) (fib (- n 2))))))
+(println (fib 25))
