@@ -5,68 +5,68 @@ enum class ASTNodeType { Bool, Integer, Decimal, Symbol, List, Lambda, String };
 
 class ASTNode {
  public:
-  virtual std::string getRepr() = 0;
-  virtual bool getBool() = 0;
-  virtual ASTNodeType type() = 0;
-  virtual ASTNode* deepCopy() { return nullptr; };
+  virtual std::string getRepr() const = 0;
+  virtual bool getBool() const = 0;
+  virtual ASTNodeType type() const = 0;
+  virtual ASTNode* deepCopy() const { return nullptr; };
   virtual ~ASTNode() {}
 };
 
 class BoolNode : public ASTNode {
  public:
   BoolNode(bool v) : value(v) {}
-  ASTNodeType type() { return ASTNodeType::Bool; }
-  bool getBool() { return value; }
-  std::string getRepr() {
+  ASTNodeType type() const { return ASTNodeType::Bool; }
+  bool getBool() const { return value; }
+  std::string getRepr() const {
     if (value) return "#true";
     return "#false";
   }
-  ASTNode* deepCopy() { return new BoolNode(value); }
+  ASTNode* deepCopy() const { return new BoolNode(value); }
   bool value = false;
 };
 
 class IntegerNode : public ASTNode {
  public:
   IntegerNode(int v) : value(v) {}
-  ASTNodeType type() { return ASTNodeType::Integer; }
-  bool getBool() { return (value != 0); }
-  std::string getRepr() { return std::to_string(value); }
-  ASTNode* deepCopy() { return new IntegerNode(value); }
+  ASTNodeType type() const { return ASTNodeType::Integer; }
+  bool getBool() const { return (value != 0); }
+  std::string getRepr() const { return std::to_string(value); }
+  ASTNode* deepCopy() const { return new IntegerNode(value); }
   int value = 0;
 };
 
 class DecimalNode : public ASTNode {
  public:
   DecimalNode(float v) : value(v) {}
-  ASTNodeType type() { return ASTNodeType::Decimal; }
-  bool getBool() { return (value != 0); }
-  std::string getRepr() { return std::to_string(value); }
-  ASTNode* deepCopy() { return new DecimalNode(value); }
+  ASTNodeType type() const { return ASTNodeType::Decimal; }
+  bool getBool() const { return (value != 0); }
+  std::string getRepr() const { return std::to_string(value); }
+  ASTNode* deepCopy() const { return new DecimalNode(value); }
   float value = 0;
 };
 
 class StringNode : public ASTNode {
  public:
   StringNode(std::string v) : value(v) {}
-  ASTNodeType type() { return ASTNodeType::String; }
-  bool getBool() { return !value.empty(); }
-  std::string getRepr() {
+  ASTNodeType type() const { return ASTNodeType::String; }
+  bool getBool() const { return !value.empty(); }
+  std::string getRepr() const {
     std::string repr = "\"";
     repr += value;
     repr += "\"";
     return repr;
   }
-  ASTNode* deepCopy() { return new StringNode(value); }
+  ASTNode* deepCopy() const { return new StringNode(value); }
   std::string value = "";
 };
 
 class SymbolNode : public ASTNode {
  public:
   SymbolNode(std::string v) : symbol(v) {}
-  ASTNodeType type() { return ASTNodeType::Symbol; }
-  bool getBool() { return true; }
-  std::string getRepr() { return symbol; }
-  ASTNode* deepCopy() { return new SymbolNode(symbol); }
+  ASTNodeType type() const { return ASTNodeType::Symbol; }
+  bool getBool() const { return true; }
+  std::string getRepr() const { return symbol; }
+  ASTNode* deepCopy() const { return new SymbolNode(symbol); }
   std::string symbol;
 };
 
@@ -77,12 +77,12 @@ class LambdaNode : public ASTNode {
     delete arglist;
     delete body;
   }
-  ASTNodeType type() { return ASTNodeType::Lambda; }
-  bool getBool() { return true; }
-  std::string getRepr() {
+  ASTNodeType type() const { return ASTNodeType::Lambda; }
+  bool getBool() const { return true; }
+  std::string getRepr() const {
     return std::string("<lambda=") + std::to_string((uint64_t)this) + ">";
   }
-  ASTNode* deepCopy() {
+  ASTNode* deepCopy() const {
     return new LambdaNode(arglist->deepCopy(), body->deepCopy());
   }
   ASTNode* arglist = nullptr;
@@ -95,9 +95,9 @@ class ListNode : public ASTNode {
   ~ListNode() {
     for (auto node : list) delete node;
   }
-  ASTNodeType type() { return ASTNodeType::List; }
-  bool getBool() { return (list.size() != 0); }
-  std::string getRepr() {
+  ASTNodeType type() const { return ASTNodeType::List; }
+  bool getBool() const { return (list.size() != 0); }
+  std::string getRepr() const {
     std::string lr = "( ";
     for (auto it = list.begin(); it != list.end(); it++) {
       lr += (*it)->getRepr();
@@ -106,7 +106,7 @@ class ListNode : public ASTNode {
     lr += ")";
     return lr;
   }
-  ASTNode* deepCopy() {
+  ASTNode* deepCopy() const {
     std::list<ASTNode*> retlist;
     for (auto& node : list) {
       retlist.push_back(node->deepCopy());
@@ -115,3 +115,6 @@ class ListNode : public ASTNode {
   }
   std::list<ASTNode*> list;
 };
+
+std::list<ASTNode*> create_ast(std::list<std::string>& tokens,
+                               bool closing_paren_allow = false);

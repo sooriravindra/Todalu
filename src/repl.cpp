@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "common.h"
 #include "history.h"
 #include "interpret.h"
 #include "readline.h"
