@@ -1,3 +1,5 @@
+#ifndef _ASTH
+#define _ASTH
 #include <list>
 #include <string>
 
@@ -118,3 +120,6 @@ class ListNode : public ASTNode {
 
 std::list<ASTNode*> create_ast(std::list<std::string>& tokens,
                                bool closing_paren_allow = false);
+
+void free_ast(std::list<ASTNode*>& list);
+#endif

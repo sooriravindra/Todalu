@@ -2,30 +2,16 @@
 
 #include <iostream>
 #include <list>
-#include <regex>
 #include <string>
+#include <map>
+#include <memory>
 
 #include "ast.h"
 #include "common.h"
 
-ASTNode* eval_tree(ASTNode* node);
-
 std::map<std::string, std::list<ASTNode*>> gEnv;
 
-std::list<std::string> tokenizer(std::string& str) {
-  str = std::regex_replace(str, std::regex("\n"), " ");
-  str = std::regex_replace(str, std::regex("\\("), " ( ");
-  str = std::regex_replace(str, std::regex("\\)"), " ) ");
-  std::list<std::string> tokens;
-  std::stringstream ss(str);
-  std::string token;
-  while (ss >> token) {
-    tokens.push_back(token);
-  }
-  return tokens;
-}
-
-void operate_on_node(ASTNode* node, char op, float& acc, bool& is_all_int) {
+void Interpreter::operate_on_node(ASTNode* node, char op, float& acc, bool& is_all_int) {
   auto operation = [](float a, float b, char op) {
     switch (op) {
       case '+':
@@ -57,7 +43,7 @@ void operate_on_node(ASTNode* node, char op, float& acc, bool& is_all_int) {
   }
 }
 
-void bind_arguments(LambdaNode* lambda, ListNode* listnode) {
+void Interpreter::bind_arguments(LambdaNode* lambda, ListNode* listnode) {
   if (lambda->arglist->type() == ASTNodeType::Symbol) {
     auto arg = eval_tree(listnode->list.back());  // there is only 1 arg
     gEnv[lambda->arglist->getRepr()].push_front(arg);
@@ -80,7 +66,7 @@ void bind_arguments(LambdaNode* lambda, ListNode* listnode) {
   }
 }
 
-void unbind_arguments(LambdaNode* lambda) {
+void Interpreter::unbind_arguments(LambdaNode* lambda) {
   if (lambda->arglist->type() == ASTNodeType::Symbol) {
     delete gEnv[lambda->arglist->getRepr()].front();
     gEnv[lambda->arglist->getRepr()].pop_front();
@@ -99,7 +85,7 @@ void unbind_arguments(LambdaNode* lambda) {
   }
 }
 
-ASTNode* eval_tree(ASTNode* node) {
+ASTNode* Interpreter::eval_tree(ASTNode* node) {
   try {
     if (node->type() == ASTNodeType::List) {
       auto listnode = dynamic_cast<ListNode*>(node);
@@ -402,20 +388,7 @@ ASTNode* eval_tree(ASTNode* node) {
   }
 }
 
-bool is_comment(std::string& line) {
-  for (auto c : line) {
-    if (std::isspace(c)) continue;
-    if (c == '#') return true;
-    return false;
-  }
-  return true;
-}
-
-void free_ast(std::list<ASTNode*>& list) {
-  for (auto node : list) delete node;
-}
-
-std::string interpret_line(std::string str) {
+std::string Interpreter::handle_line(std::string str) {
   if (is_comment(str)) return "";
   auto tokens = tokenizer(str);
   auto ast = create_ast(tokens);
@@ -432,7 +405,7 @@ std::string interpret_line(std::string str) {
   return result->getRepr() + "\n";
 }
 
-void free_env() {
+Interpreter::~Interpreter() {
   for (auto p : gEnv) {
     for (auto node : p.second) delete node;
   }

@@ -67,3 +67,7 @@ std::list<ASTNode*> create_ast(std::list<std::string>& tokens,
   if (closing_paren_allow) throw TodaluException("Unmatched '('");
   return ret;
 }
+
+void free_ast(std::list<ASTNode*>& list) {
+  for (auto node : list) delete node;
+}

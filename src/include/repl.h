@@ -1,1 +1,1 @@
-void run_repl();
+int run_repl();
