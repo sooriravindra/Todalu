@@ -5,6 +5,7 @@
 #include <list>
 #include <string>
 #include <sstream>
+#include "ast.h"
 
 class Inpiler {
  public:
@@ -30,4 +31,8 @@ class TodaluException : public std::runtime_error {
 
 bool is_comment(std::string& line);
 std::list<std::string> tokenizer(std::string& str);
+std::list<ASTNode*> create_ast(std::list<std::string>& tokens,
+                               bool closing_paren_allow = false);
+
+void free_ast(std::list<ASTNode*>& list);
 #endif

@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
   }
 
   // Compile or interpret filename given.
-  Inpiler * engine = compile? (Inpiler *) new Compiler() : (Inpiler *) new Interpreter();
+  Inpiler * engine = compile? (Inpiler *) new Compiler(filename) : (Inpiler *) new Interpreter();
   engine->load_granthalaya();
   std::ifstream fs(filename);
   if (!fs.good()) {
@@ -64,4 +64,6 @@ int main(int argc, char** argv) {
       wholeline = "";
     }
   }
+  // TODO use smart pointer
+  delete engine;
 }

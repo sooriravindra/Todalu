@@ -3,7 +3,7 @@
 #include <list>
 #include <string>
 
-enum class ASTNodeType { Bool, Integer, Decimal, Symbol, List, Lambda, String };
+enum ASTNodeType { Bool = 0, Integer, Decimal, Symbol, List, Lambda, String };
 
 class ASTNode {
  public:
@@ -118,8 +118,4 @@ class ListNode : public ASTNode {
   std::list<ASTNode*> list;
 };
 
-std::list<ASTNode*> create_ast(std::list<std::string>& tokens,
-                               bool closing_paren_allow = false);
-
-void free_ast(std::list<ASTNode*>& list);
 #endif
