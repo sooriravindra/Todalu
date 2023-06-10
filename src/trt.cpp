@@ -30,11 +30,27 @@ IRNode* arithmetic(char op, uint32_t num_args, ...) {
     }
   };
 
-  if (op == '-' || op == '/') {
-    throw std::runtime_error("Not implemented yet");
+  if (num_args < 2) {
+    std::runtime_error("Too few arguments..");
   }
 
-  for (int i = 0; i < num_args; i++) {
+  int i = 0;
+  if (op == '-' || op == '/') {
+    i++;
+    IRNode* arg = va_arg(args, IRNode*);
+    if (arg->type == ASTNodeType::Decimal) {
+      all_int = false;
+      xformer.integer = arg->value;
+      acc = operation(acc, xformer.decimal, '+');
+    } else if (arg->type != ASTNodeType::Integer) {
+      std::cerr << "Add received an incompatible operand type";
+      exit(1);
+    } else {
+      acc = operation(acc, arg->value, '+');
+    }
+  }
+
+  for (; i < num_args; i++) {
     IRNode* arg = va_arg(args, IRNode*);
     if (arg->type == ASTNodeType::Decimal) {
       all_int = false;
