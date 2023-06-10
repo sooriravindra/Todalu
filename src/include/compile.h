@@ -11,6 +11,9 @@ class Compiler : public Inpiler {
 
  private:
   llvm::Value* generate_code(ASTNode* node);
+  llvm::Value* generate_arithmetic(char op, ListNode* listnode);
+  llvm::Value* generate_println(ASTNode* node);
+  llvm::Value* generate_irnode(ASTNode* node);
   std::string mfilename;
   llvm::Module* pmodule;
   llvm::IRBuilder<>* pbuilder;
