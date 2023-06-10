@@ -12,8 +12,7 @@
 #include "readline.h"
 #include "repl.h"
 
-
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   std::string usage = std::string("Usage :") + argv[0] +
                       " [-h] [-c] [file]\n-c to compile\n-h to print help";
   int option;
@@ -49,11 +48,13 @@ int main(int argc, char** argv) {
   }
 
   // Compile or interpret filename given.
-  Inpiler * engine = compile? (Inpiler *) new Compiler(filename) : (Inpiler *) new Interpreter();
-  engine->load_granthalaya();
+  Inpiler *engine = compile ? (Inpiler *)new Compiler(filename)
+                            : (Inpiler *)new Interpreter();
+  if (!compile)  // TODO : Make this unconditional
+    engine->load_granthalaya();
   std::ifstream fs(filename);
   if (!fs.good()) {
-      std::cerr << "Input file couldn't be read" << std::endl;
+    std::cerr << "Input file couldn't be read" << std::endl;
   }
   std::string line;
   std::string wholeline = "";

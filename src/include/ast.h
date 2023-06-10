@@ -34,7 +34,7 @@ class IntegerNode : public ASTNode {
   bool getBool() const { return (value != 0); }
   std::string getRepr() const { return std::to_string(value); }
   ASTNode* deepCopy() const { return new IntegerNode(value); }
-  int value = 0;
+  int64_t value = 0;
 };
 
 class DecimalNode : public ASTNode {
@@ -44,7 +44,7 @@ class DecimalNode : public ASTNode {
   bool getBool() const { return (value != 0); }
   std::string getRepr() const { return std::to_string(value); }
   ASTNode* deepCopy() const { return new DecimalNode(value); }
-  float value = 0;
+  double value = 0;
 };
 
 class StringNode : public ASTNode {

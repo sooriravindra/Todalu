@@ -1,7 +1,9 @@
+#include "common.h"
+
+#include <list>
 #include <regex>
 #include <string>
-#include <list>
-#include "common.h"
+
 #include "granthalaya.h"
 
 void Inpiler::load_granthalaya() {

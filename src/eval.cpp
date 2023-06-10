@@ -1,10 +1,12 @@
-#include <map>
-#include <string>
-#include <memory>
+#include "eval.h"
+
 #include <iostream>
+#include <map>
+#include <memory>
+#include <string>
+
 #include "ast.h"
 #include "common.h"
-#include "eval.h"
 
 std::map<std::string, std::list<ASTNode*>> gEnv;
 

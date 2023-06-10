@@ -1,10 +1,11 @@
 #ifndef _COMMONH
 #define _COMMONH
 #include <exception>
-#include <stdexcept>
 #include <list>
-#include <string>
 #include <sstream>
+#include <stdexcept>
+#include <string>
+
 #include "ast.h"
 
 class Inpiler {

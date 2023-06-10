@@ -2,9 +2,9 @@
 
 #include <iostream>
 #include <list>
-#include <string>
 #include <map>
 #include <memory>
+#include <string>
 
 #include "ast.h"
 #include "common.h"
@@ -27,6 +27,4 @@ std::string Interpreter::handle_line(std::string str) {
   return result->getRepr() + "\n";
 }
 
-Interpreter::~Interpreter() {
-  free_env();
-}
+Interpreter::~Interpreter() { free_env(); }
