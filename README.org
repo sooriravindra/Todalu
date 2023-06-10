@@ -51,3 +51,35 @@ todalu>
 Enter a number: 10
 => 14
 #+end_src
+
+** Built-ins and support
+
+|---------+----------+---------|
+| keyword | intepret | compile |
+|---------+----------+---------|
+| +       | yes      | yes     |
+| -       | yes      | yes     |
+| *       | yes      | yes     |
+| /       | yes      | yes     |
+| eq?     | yes      | no      |
+| list?   | yes      | no      |
+| int?    | yes      | no      |
+| bool?   | yes      | no      |
+| dec?    | yes      | no      |
+| string? | yes      | no      |
+| >       | yes      | no      |
+| progn   | yes      | no      |
+| print   | yes      | partial |
+| println | yes      | partial |
+| quote   | yes      | no      |
+| eval    | yes      | no      |
+| exit    | yes      | no      |
+| readstr | yes      | no      |
+| read    | yes      | no      |
+| car     | yes      | no      |
+| cdr     | yes      | no      |
+| cons    | yes      | no      |
+| lambda  | yes      | no      |
+| def     | yes      | no      |
+| if      | yes      | no      |
+|---------+----------+---------|
