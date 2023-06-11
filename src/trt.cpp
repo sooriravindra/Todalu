@@ -84,6 +84,12 @@ IRNode* is_greater(IRNode* oprnd1, IRNode* oprnd2) {
   return ret;
 }
 
+void quit(IRNode* node) {
+  if (node->type != ASTNodeType::Integer)
+    throw std::runtime_error("Got non-integer exit code");
+  exit(node->value);
+}
+
 IRNode* arithmetic(char op, uint32_t num_args, ...) {
   va_list args;
   va_start(args, num_args);

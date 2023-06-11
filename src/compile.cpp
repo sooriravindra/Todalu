@@ -162,6 +162,15 @@ Value* Compiler::generate_istype(ASTNode* node, uint32_t type) {
   return pbuilder->CreateCall(fun, {nodearg, typearg});
 }
 
+Value* Compiler::generate_exit(ASTNode* node) {
+  auto nodearg = generate_code(node);
+  FunctionType* funType = FunctionType::get(
+      pbuilder->getVoidTy(), {PointerType::get(irnode, 0)}, false);
+  Function* fun =
+      Function::Create(funType, Function::ExternalLinkage, "_Z4quitP7_IRNode");
+  return pbuilder->CreateCall(fun, {nodearg});
+}
+
 Value* Compiler::generate_greater(ASTNode* node1, ASTNode* node2) {
   auto oprnd1 = generate_code(node1);
   auto oprnd2 = generate_code(node2);
@@ -238,6 +247,11 @@ Value* Compiler::generate_code(ASTNode* node) {
           Value* ret;
           while (it != itend) ret = generate_code(*(it++));
           return ret;
+        }
+        if (fun == "exit") {
+          if (listnode->list.size() != 2)
+            throw std::runtime_error("Exit expects 1 argument");
+          return generate_exit(listnode->list.back());
         }
       }
 
