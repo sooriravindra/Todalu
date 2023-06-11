@@ -2,6 +2,10 @@
 
 #include <cstdarg>
 #include <iostream>
+#include <list>
+#include <map>
+
+static std::map<int64_t, std::list<IRNode*>> gEnv;
 
 typedef union _as {
   int64_t integer;
@@ -9,6 +13,28 @@ typedef union _as {
 } as;
 
 enum ASTNodeType { Bool = 0, Integer, Decimal, Symbol, List, Lambda, String };
+IRNode* define(IRNode* symbol, IRNode* value) {
+  if (symbol->type != ASTNodeType::Symbol)
+    throw std::runtime_error("Non-symbol can't be defined");
+  if (gEnv.find(symbol->value) != gEnv.end() && gEnv[symbol->value].size()) {
+    gEnv[symbol->value].pop_front();
+    gEnv[symbol->value].push_front(value);
+  } else {
+    gEnv[symbol->value].push_front(value);
+  }
+  return value;
+}
+
+IRNode* retrieve(IRNode* symbol) {
+  if (symbol->type != ASTNodeType::Symbol) {
+    throw std::runtime_error("Can't retrieve value of non-symbol");
+  }
+  if (gEnv.find(symbol->value) != gEnv.end() && gEnv[symbol->value].size()) {
+    return gEnv[symbol->value].front();
+  }
+  throw std::runtime_error("Undefined symbol");
+}
+
 IRNode* arithmetic(char op, uint32_t num_args, ...) {
   va_list args;
   va_start(args, num_args);
