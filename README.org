@@ -62,11 +62,11 @@ Enter a number: 10
 | *       | yes      | yes     |
 | /       | yes      | yes     |
 | eq?     | yes      | yes     |
-| list?   | yes      | no      |
-| int?    | yes      | no      |
-| bool?   | yes      | no      |
-| dec?    | yes      | no      |
-| string? | yes      | no      |
+| list?   | yes      | partial |
+| int?    | yes      | yes     |
+| bool?   | yes      | yes     |
+| dec?    | yes      | yes     |
+| string? | yes      | partial |
 | >       | yes      | no      |
 | progn   | yes      | no      |
 | print   | yes      | partial |

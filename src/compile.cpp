@@ -151,6 +151,17 @@ Value* Compiler::generate_isequal(ASTNode* oprnd1, ASTNode* oprnd2) {
   return pbuilder->CreateCall(fun, {irnode1, irnode2});
 }
 
+Value* Compiler::generate_istype(ASTNode* node, uint32_t type) {
+  auto nodearg = generate_code(node);
+  Value* typearg = ConstantInt::get(Type::getInt32Ty(context), type);
+  FunctionType* funType = FunctionType::get(
+      PointerType::get(irnode, 0),
+      {PointerType::get(irnode, 0), pbuilder->getInt32Ty()}, false);
+  Function* fun = Function::Create(funType, Function::ExternalLinkage,
+                                   "_Z7is_typeP7_IRNodej");
+  return pbuilder->CreateCall(fun, {nodearg, typearg});
+}
+
 Value* Compiler::generate_code(ASTNode* node) {
   switch (node->type()) {
     case ASTNodeType::List: {
@@ -176,6 +187,31 @@ Value* Compiler::generate_code(ASTNode* node) {
             throw std::runtime_error("eq? takes 2 arguments");
           return generate_isequal(*(std::next(listnode->list.begin())),
                                   listnode->list.back());
+        }
+        if (fun == "list?") {
+          if (listnode->list.size() != 2)
+            throw std::runtime_error("list? takes 1 arguments");
+          return generate_istype(listnode->list.back(), ASTNodeType::List);
+        }
+        if (fun == "int?") {
+          if (listnode->list.size() != 2)
+            throw std::runtime_error("int? takes 1 arguments");
+          return generate_istype(listnode->list.back(), ASTNodeType::Integer);
+        }
+        if (fun == "dec?") {
+          if (listnode->list.size() != 2)
+            throw std::runtime_error("dec? takes 1 arguments");
+          return generate_istype(listnode->list.back(), ASTNodeType::Decimal);
+        }
+        if (fun == "bool?") {
+          if (listnode->list.size() != 2)
+            throw std::runtime_error("int? takes 1 arguments");
+          return generate_istype(listnode->list.back(), ASTNodeType::Bool);
+        }
+        if (fun == "string?") {
+          if (listnode->list.size() != 2)
+            throw std::runtime_error("int? takes 1 arguments");
+          return generate_istype(listnode->list.back(), ASTNodeType::String);
         }
       }
 

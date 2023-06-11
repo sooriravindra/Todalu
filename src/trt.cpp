@@ -45,6 +45,16 @@ IRNode* is_equal(IRNode* oprnd1, IRNode* oprnd2) {
   return ret;
 }
 
+IRNode* is_type(IRNode* oprnd1, uint32_t type) {
+  auto ret = new IRNode();
+  ret->type = ASTNodeType::Bool;
+  if (oprnd1->type == type)
+    ret->value = 1;
+  else
+    ret->value = 0;
+  return ret;
+}
+
 IRNode* arithmetic(char op, uint32_t num_args, ...) {
   va_list args;
   va_start(args, num_args);
