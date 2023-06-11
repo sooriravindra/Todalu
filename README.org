@@ -68,7 +68,7 @@ Enter a number: 10
 | dec?    | yes      | yes     |
 | string? | yes      | partial |
 | >       | yes      | yes     |
-| progn   | yes      | no      |
+| progn   | yes      | yes     |
 | print   | yes      | partial |
 | println | yes      | partial |
 | quote   | yes      | no      |

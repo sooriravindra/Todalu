@@ -230,6 +230,15 @@ Value* Compiler::generate_code(ASTNode* node) {
           return generate_greater(*std::next(listnode->list.begin()),
                                   listnode->list.back());
         }
+        if (fun == "progn") {
+          if (listnode->list.size() < 2)
+            throw std::runtime_error("progn takes atleast 1 argument");
+          auto it = std::next(listnode->list.begin());
+          auto itend = listnode->list.end();
+          Value* ret;
+          while (it != itend) ret = generate_code(*(it++));
+          return ret;
+        }
       }
 
       throw std::runtime_error("Not implemented");
