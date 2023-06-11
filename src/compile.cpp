@@ -54,8 +54,12 @@ int64_t convert_sym(SymbolNode* node, bool create = false) {
   return gSymbolMap[node->symbol];
 }
 
-Value* Compiler::generate_irnode(uint32_t type, int64_t value) {
-  AllocaInst* nodeobj = pbuilder->CreateAlloca(irnode, nullptr, "node");
+Value* Compiler::generate_irnode(uint32_t type, Value* value) {
+  FunctionType* operationType =
+      FunctionType::get(PointerType::get(irnode, 0), false);
+  Function* operation = Function::Create(
+      operationType, Function::ExternalLinkage, "_Z9allocNodev");
+  Value* nodeobj = pbuilder->CreateCall(operation);
   Value* typeidx[] = {pbuilder->getInt32(0), pbuilder->getInt32(0)};
   Value* fieldtype =
       pbuilder->CreateGEP(irnode, nodeobj, typeidx, "field-type");
@@ -64,8 +68,15 @@ Value* Compiler::generate_irnode(uint32_t type, int64_t value) {
       pbuilder->CreateGEP(irnode, nodeobj, valueidx, "field-value");
 
   pbuilder->CreateStore(pbuilder->getInt8(type), fieldtype);
-  pbuilder->CreateStore(pbuilder->getInt64(value), fieldvalue);
+  if (value->getType()->isPointerTy())
+    value = pbuilder->CreatePtrToInt(value, pbuilder->getInt64Ty());
+  pbuilder->CreateStore(value, fieldvalue);
   return nodeobj;
+}
+
+Value* Compiler::generate_irnode(uint32_t type, int64_t value) {
+  Value* valueV = pbuilder->getInt64(value);
+  return generate_irnode(type, valueV);
 }
 
 Value* Compiler::generate_irnode(ASTNode* node) {
@@ -94,8 +105,31 @@ Value* Compiler::generate_irnode(ASTNode* node) {
           operationType, Function::ExternalLinkage, "_Z8retrieveP7_IRNode");
       return pbuilder->CreateCall(operation, {nodeobj});
     }
+    case ASTNodeType::List: {
+      auto listnode = dynamic_cast<ListNode*>(node);
+      std::vector<Value*> values;
+      for (auto it = listnode->list.begin(); it != listnode->list.end(); it++) {
+        values.push_back(generate_irnode(*it));
+      }
+      FunctionType* operationType =
+          FunctionType::get(pbuilder->getInt8PtrTy(), false);
+      Function* operation = Function::Create(
+          operationType, Function::ExternalLinkage, "_Z9allocListv");
+      Value* plist = pbuilder->CreateCall(operation);
+      Value* ret = generate_irnode(ASTNodeType::List, plist);
+      for (auto it = values.begin(); it != values.end(); it++) {
+        FunctionType* operationType = FunctionType::get(
+            pbuilder->getVoidTy(),
+            {pbuilder->getInt8PtrTy(), PointerType::get(irnode, 0)}, false);
+        Function* operation =
+            Function::Create(operationType, Function::ExternalLinkage,
+                             "_Z12listPushBackPcP7_IRNode");
+        pbuilder->CreateCall(operation, {plist, *it});
+      }
+      return ret;
+    }
     default:
-      throw std::runtime_error("Not implemented");
+      throw std::runtime_error("Not implemented at irnode generation");
   }
   return nodeobj;
 }
@@ -297,6 +331,11 @@ Value* Compiler::generate_code(ASTNode* node) {
           auto ifbody = *std::next(std::next(listnode->list.begin()));
           auto elsebody = listnode->list.back();
           return generate_if(condition, ifbody, elsebody);
+        }
+        if (fun == "quote") {
+          if (listnode->list.size() != 2)
+            throw std::runtime_error("quote expects 2 arguments");
+          return generate_irnode(listnode->list.back());
         }
       }
 

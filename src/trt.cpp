@@ -10,6 +10,7 @@ static std::map<int64_t, std::list<IRNode*>> gEnv;
 typedef union _as {
   int64_t integer;
   double decimal;
+  std::list<IRNode*>* list;
 } as;
 
 enum ASTNodeType { Bool = 0, Integer, Decimal, Symbol, List, Lambda, String };
@@ -90,6 +91,14 @@ void quit(IRNode* node) {
   exit(node->value);
 }
 
+IRNode* allocNode() { return new IRNode(); }
+
+char* allocList() { return (char*)new std::list<IRNode*>(); }
+
+void listPushBack(char* list, IRNode* node) {
+  ((std::list<IRNode*>*)list)->push_back(node);
+}
+
 IRNode* arithmetic(char op, uint32_t num_args, ...) {
   va_list args;
   va_start(args, num_args);
@@ -162,11 +171,21 @@ void printNode(IRNode* node) {
   as xformer;
   xformer.integer = node->value;
   if (node->type == ASTNodeType::Integer)
-    std::cout << xformer.integer << std::endl;
+    std::cout << xformer.integer;
   else if (node->type == ASTNodeType::Decimal)
-    std::cout << xformer.decimal << std::endl;
+    std::cout << xformer.decimal;
   else if (node->type == ASTNodeType::Bool)
-    std::cout << (xformer.decimal ? "#true" : "#false") << std::endl;
-  else
+    std::cout << (xformer.decimal ? "#true" : "#false");
+  else if (node->type == ASTNodeType::List) {
+    auto list = xformer.list;
+
+    std::cout << "List size: " << list->size() << " ";
+    std::cout << "( ";
+    for (auto it = list->begin(); it != list->end(); it++) {
+      printNode(*it);
+      std::cout << " ";
+    }
+    std::cout << " )";
+  } else
     std::cerr << "Unsupported" << std::endl;
 }
