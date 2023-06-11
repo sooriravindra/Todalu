@@ -162,6 +162,17 @@ Value* Compiler::generate_istype(ASTNode* node, uint32_t type) {
   return pbuilder->CreateCall(fun, {nodearg, typearg});
 }
 
+Value* Compiler::generate_greater(ASTNode* node1, ASTNode* node2) {
+  auto oprnd1 = generate_code(node1);
+  auto oprnd2 = generate_code(node2);
+  FunctionType* funType = FunctionType::get(
+      PointerType::get(irnode, 0),
+      {PointerType::get(irnode, 0), PointerType::get(irnode, 0)}, false);
+  Function* fun = Function::Create(funType, Function::ExternalLinkage,
+                                   "_Z10is_greaterP7_IRNodeS0_");
+  return pbuilder->CreateCall(fun, {oprnd1, oprnd2});
+}
+
 Value* Compiler::generate_code(ASTNode* node) {
   switch (node->type()) {
     case ASTNodeType::List: {
@@ -212,6 +223,12 @@ Value* Compiler::generate_code(ASTNode* node) {
           if (listnode->list.size() != 2)
             throw std::runtime_error("int? takes 1 arguments");
           return generate_istype(listnode->list.back(), ASTNodeType::String);
+        }
+        if (fun == ">") {
+          if (listnode->list.size() != 3)
+            throw std::runtime_error("> takes 2 arguments");
+          return generate_greater(*std::next(listnode->list.begin()),
+                                  listnode->list.back());
         }
       }
 

@@ -18,6 +18,7 @@ class Compiler : public Inpiler {
   llvm::Value* generate_define(SymbolNode* symnode, ASTNode* valuenode);
   llvm::Value* generate_isequal(ASTNode* oprnd1, ASTNode* oprnd2);
   llvm::Value* generate_istype(ASTNode* oprnd1, uint32_t oprnd2);
+  llvm::Value* generate_greater(ASTNode* node1, ASTNode* node2);
   std::string mfilename;
   llvm::Module* pmodule;
   llvm::IRBuilder<>* pbuilder;

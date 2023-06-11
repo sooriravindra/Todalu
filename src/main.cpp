@@ -65,6 +65,8 @@ int main(int argc, char **argv) {
       wholeline = "";
     }
   }
+  if (wholeline != "")
+    throw std::runtime_error("Please check that the input is wellformed");
   // TODO use smart pointer
   delete engine;
 }

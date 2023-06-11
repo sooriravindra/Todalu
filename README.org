@@ -67,7 +67,7 @@ Enter a number: 10
 | bool?   | yes      | yes     |
 | dec?    | yes      | yes     |
 | string? | yes      | partial |
-| >       | yes      | no      |
+| >       | yes      | yes     |
 | progn   | yes      | no      |
 | print   | yes      | partial |
 | println | yes      | partial |

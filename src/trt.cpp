@@ -55,6 +55,35 @@ IRNode* is_type(IRNode* oprnd1, uint32_t type) {
   return ret;
 }
 
+IRNode* is_greater(IRNode* oprnd1, IRNode* oprnd2) {
+  if ((oprnd1->type != ASTNodeType::Integer &&
+       oprnd1->type != ASTNodeType::Decimal) ||
+      (oprnd2->type != ASTNodeType::Integer &&
+       oprnd2->type != ASTNodeType::Decimal))
+    throw std::runtime_error("Can't compare operands of non-numeric types");
+  auto ret = new IRNode();
+  ret->type = ASTNodeType::Bool;
+  if (oprnd1->type == oprnd2->type) {
+    if (oprnd1->value > oprnd2->value)
+      ret->value = 1;
+    else
+      ret->value = 0;
+  } else {
+    as xformer;
+    xformer.integer = oprnd1->value;
+    double x = oprnd1->type == ASTNodeType::Integer ? (double)xformer.integer
+                                                    : xformer.decimal;
+    xformer.integer = oprnd2->value;
+    double y = oprnd2->type == ASTNodeType::Integer ? (double)xformer.integer
+                                                    : xformer.decimal;
+    if (x > y)
+      ret->value = 1;
+    else
+      ret->value = 0;
+  }
+  return ret;
+}
+
 IRNode* arithmetic(char op, uint32_t num_args, ...) {
   va_list args;
   va_start(args, num_args);
