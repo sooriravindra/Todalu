@@ -20,10 +20,12 @@ class Compiler : public Inpiler {
   llvm::Value* generate_istype(ASTNode* oprnd1, uint32_t oprnd2);
   llvm::Value* generate_greater(ASTNode* node1, ASTNode* node2);
   llvm::Value* generate_exit(ASTNode* node);
+  llvm::Value* generate_if(ASTNode* cond, ASTNode* ifbody, ASTNode* elsebody);
   std::string mfilename;
   llvm::Module* pmodule;
   llvm::IRBuilder<>* pbuilder;
   llvm::StructType* irnode;
   std::unique_ptr<llvm::Module> originalModule;
   llvm::Value* mret;
+  llvm::Function* mainFun;
 };

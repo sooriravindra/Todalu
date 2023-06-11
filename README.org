@@ -73,7 +73,7 @@ Enter a number: 10
 | println | yes      | partial |
 | quote   | yes      | no      |
 | eval    | yes      | no      |
-| exit    | yes      | no      |
+| exit    | yes      | yes     |
 | readstr | yes      | no      |
 | read    | yes      | no      |
 | car     | yes      | no      |
@@ -81,5 +81,5 @@ Enter a number: 10
 | cons    | yes      | no      |
 | lambda  | yes      | no      |
 | def     | yes      | yes     |
-| if      | yes      | no      |
+| if      | yes      | yes     |
 |---------+----------+---------|

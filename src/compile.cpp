@@ -35,8 +35,8 @@ Compiler::Compiler(std::string s) : mfilename(s) {
   irnode = StructType::create(context, "IRNode");
   irnode->setBody(pbuilder->getInt8Ty(), pbuilder->getInt64Ty());
   FunctionType* mainFunType = FunctionType::get(pbuilder->getInt32Ty(), false);
-  Function* mainFun = Function::Create(mainFunType, Function::ExternalLinkage,
-                                       "main", *pmodule);
+  mainFun = Function::Create(mainFunType, Function::ExternalLinkage, "main",
+                             *pmodule);
   BasicBlock* mainEntry = BasicBlock::Create(context, "entry", mainFun);
   pbuilder->SetInsertPoint(mainEntry);
 }
@@ -106,7 +106,8 @@ Value* Compiler::generate_println(ASTNode* node) {
       pbuilder->getVoidTy(), {PointerType::get(irnode, 0)}, false);
   Function* operation = Function::Create(
       operationType, Function::ExternalLinkage, "_Z9printNodeP7_IRNode");
-  return pbuilder->CreateCall(operation, {operand});
+  pbuilder->CreateCall(operation, {operand});
+  return operand;
 }
 
 Value* Compiler::generate_arithmetic(char opchar, ListNode* listnode) {
@@ -169,6 +170,42 @@ Value* Compiler::generate_exit(ASTNode* node) {
   Function* fun =
       Function::Create(funType, Function::ExternalLinkage, "_Z4quitP7_IRNode");
   return pbuilder->CreateCall(fun, {nodearg});
+}
+
+Value* Compiler::generate_if(ASTNode* cond, ASTNode* ifbdy, ASTNode* elsebdy) {
+  // Read condition
+  auto condnode = generate_code(cond);
+  Value* valueidx[] = {pbuilder->getInt32(0), pbuilder->getInt32(1)};
+  auto fieldvalue =
+      pbuilder->CreateGEP(irnode, condnode, valueidx, "cond-value");
+  auto condvalue = pbuilder->CreateLoad(pbuilder->getInt64Ty(), fieldvalue);
+  auto condbool = pbuilder->CreateTrunc(condvalue, pbuilder->getInt1Ty());
+
+  // Generate basic blocks
+  auto ifBB = BasicBlock::Create(context);
+  auto elseBB = BasicBlock::Create(context);
+  auto mergeBB = BasicBlock::Create(context);
+
+  // if body
+  pbuilder->CreateCondBr(condbool, ifBB, elseBB);
+  mainFun->getBasicBlockList().push_back(ifBB);
+  pbuilder->SetInsertPoint(ifBB);
+  auto ifret = generate_code(ifbdy);
+  pbuilder->CreateBr(mergeBB);
+
+  // else body
+  mainFun->getBasicBlockList().push_back(elseBB);
+  pbuilder->SetInsertPoint(elseBB);
+  auto elseret = generate_code(elsebdy);
+  pbuilder->CreateBr(mergeBB);
+
+  // Merge
+  mainFun->getBasicBlockList().push_back(mergeBB);
+  pbuilder->SetInsertPoint(mergeBB);
+  auto phinode = pbuilder->CreatePHI(PointerType::get(irnode, 0), 2);
+  phinode->addIncoming(ifret, ifBB);
+  phinode->addIncoming(elseret, elseBB);
+  return phinode;
 }
 
 Value* Compiler::generate_greater(ASTNode* node1, ASTNode* node2) {
@@ -252,6 +289,14 @@ Value* Compiler::generate_code(ASTNode* node) {
           if (listnode->list.size() != 2)
             throw std::runtime_error("Exit expects 1 argument");
           return generate_exit(listnode->list.back());
+        }
+        if (fun == "if") {
+          if (listnode->list.size() != 4)
+            throw std::runtime_error("if expects 3 arguments");
+          auto condition = *std::next(listnode->list.begin());
+          auto ifbody = *std::next(std::next(listnode->list.begin()));
+          auto elsebody = listnode->list.back();
+          return generate_if(condition, ifbody, elsebody);
         }
       }
 
