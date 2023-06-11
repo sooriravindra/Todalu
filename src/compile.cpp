@@ -140,6 +140,17 @@ Value* Compiler::generate_define(SymbolNode* symnode, ASTNode* valuenode) {
   return pbuilder->CreateCall(fun, {symoperand, valueoperand});
 }
 
+Value* Compiler::generate_isequal(ASTNode* oprnd1, ASTNode* oprnd2) {
+  auto irnode1 = generate_code(oprnd1);
+  auto irnode2 = generate_code(oprnd2);
+  FunctionType* funType = FunctionType::get(
+      PointerType::get(irnode, 0),
+      {PointerType::get(irnode, 0), PointerType::get(irnode, 0)}, false);
+  Function* fun = Function::Create(funType, Function::ExternalLinkage,
+                                   "_Z8is_equalP7_IRNodeS0_");
+  return pbuilder->CreateCall(fun, {irnode1, irnode2});
+}
+
 Value* Compiler::generate_code(ASTNode* node) {
   switch (node->type()) {
     case ASTNodeType::List: {
@@ -151,9 +162,20 @@ Value* Compiler::generate_code(ASTNode* node) {
           return generate_arithmetic(fun[0], listnode);
         if (fun == "println") return generate_println(listnode->list.back());
         if (fun == "def") {
-          auto symnode =
-              dynamic_cast<SymbolNode*>(*std::next(listnode->list.begin()));
-          return generate_define(symnode, listnode->list.back());
+          auto symnode = *std::next(listnode->list.begin());
+          if (symnode->type() != ASTNodeType::Symbol)
+            throw std::runtime_error(
+                "def needs the first argument to be symbol");
+          if (listnode->list.size() != 3)
+            throw std::runtime_error("def takes 2 arguments");
+          return generate_define(dynamic_cast<SymbolNode*>(symnode),
+                                 listnode->list.back());
+        }
+        if (fun == "eq?") {
+          if (listnode->list.size() != 3)
+            throw std::runtime_error("eq? takes 2 arguments");
+          return generate_isequal(*(std::next(listnode->list.begin())),
+                                  listnode->list.back());
         }
       }
 

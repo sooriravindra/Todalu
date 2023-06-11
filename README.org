@@ -61,7 +61,7 @@ Enter a number: 10
 | -       | yes      | yes     |
 | *       | yes      | yes     |
 | /       | yes      | yes     |
-| eq?     | yes      | no      |
+| eq?     | yes      | yes     |
 | list?   | yes      | no      |
 | int?    | yes      | no      |
 | bool?   | yes      | no      |
@@ -80,6 +80,6 @@ Enter a number: 10
 | cdr     | yes      | no      |
 | cons    | yes      | no      |
 | lambda  | yes      | no      |
-| def     | yes      | no      |
+| def     | yes      | yes     |
 | if      | yes      | no      |
 |---------+----------+---------|

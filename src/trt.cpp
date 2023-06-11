@@ -35,6 +35,16 @@ IRNode* retrieve(IRNode* symbol) {
   throw std::runtime_error("Undefined symbol");
 }
 
+IRNode* is_equal(IRNode* oprnd1, IRNode* oprnd2) {
+  auto ret = new IRNode();
+  ret->type = ASTNodeType::Bool;
+  if (oprnd1->type == oprnd2->type && oprnd1->value == oprnd2->value)
+    ret->value = 1;
+  else
+    ret->value = 0;
+  return ret;
+}
+
 IRNode* arithmetic(char op, uint32_t num_args, ...) {
   va_list args;
   va_start(args, num_args);
@@ -110,6 +120,8 @@ void printNode(IRNode* node) {
     std::cout << xformer.integer << std::endl;
   else if (node->type == ASTNodeType::Decimal)
     std::cout << xformer.decimal << std::endl;
+  else if (node->type == ASTNodeType::Bool)
+    std::cout << (xformer.decimal ? "#true" : "#false") << std::endl;
   else
     std::cerr << "Unsupported" << std::endl;
 }
