@@ -22,6 +22,7 @@ class Compiler : public Inpiler {
   llvm::Value* generate_greater(ASTNode* node1, ASTNode* node2);
   llvm::Value* generate_exit(ASTNode* node);
   llvm::Value* generate_if(ASTNode* cond, ASTNode* ifbody, ASTNode* elsebody);
+  llvm::Value* generate_car(ASTNode* node);
   std::string mfilename;
   llvm::Module* pmodule;
   llvm::IRBuilder<>* pbuilder;

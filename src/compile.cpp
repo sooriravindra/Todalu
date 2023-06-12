@@ -254,6 +254,15 @@ Value* Compiler::generate_greater(ASTNode* node1, ASTNode* node2) {
   return pbuilder->CreateCall(fun, {oprnd1, oprnd2});
 }
 
+Value* Compiler::generate_car(ASTNode* node) {
+  auto oprnd1 = generate_code(node);
+  FunctionType* funType = FunctionType::get(
+      PointerType::get(irnode, 0), {PointerType::get(irnode, 0)}, false);
+  Function* fun =
+      Function::Create(funType, Function::ExternalLinkage, "_Z3carP7_IRNode");
+  return pbuilder->CreateCall(fun, {oprnd1});
+}
+
 Value* Compiler::generate_code(ASTNode* node) {
   switch (node->type()) {
     case ASTNodeType::List: {
@@ -339,6 +348,11 @@ Value* Compiler::generate_code(ASTNode* node) {
           if (listnode->list.size() != 2)
             throw std::runtime_error("quote expects 2 arguments");
           return generate_irnode(listnode->list.back());
+        }
+        if (fun == "car") {
+          if (listnode->list.size() != 2)
+            throw std::runtime_error("car expects 2 arguments");
+          return generate_car(listnode->list.back());
         }
       }
 
