@@ -76,9 +76,9 @@ Enter a number: 10
 | exit    | yes      | yes     |
 | readstr | yes      | no      |
 | read    | yes      | no      |
-| car     | yes      | no      |
-| cdr     | yes      | no      |
-| cons    | yes      | no      |
+| car     | yes      | yes     |
+| cdr     | yes      | yes     |
+| cons    | yes      | yes     |
 | lambda  | yes      | no      |
 | def     | yes      | yes     |
 | if      | yes      | yes     |

@@ -263,6 +263,26 @@ Value* Compiler::generate_car(ASTNode* node) {
   return pbuilder->CreateCall(fun, {oprnd1});
 }
 
+Value* Compiler::generate_cdr(ASTNode* node) {
+  auto oprnd1 = generate_code(node);
+  FunctionType* funType = FunctionType::get(
+      PointerType::get(irnode, 0), {PointerType::get(irnode, 0)}, false);
+  Function* fun =
+      Function::Create(funType, Function::ExternalLinkage, "_Z3cdrP7_IRNode");
+  return pbuilder->CreateCall(fun, {oprnd1});
+}
+
+Value* Compiler::generate_cons(ASTNode* node, ASTNode* listnode) {
+  auto oprnd1 = generate_code(node);
+  auto oprnd2 = generate_code(listnode);
+  FunctionType* funType = FunctionType::get(
+      PointerType::get(irnode, 0),
+      {PointerType::get(irnode, 0), PointerType::get(irnode, 0)}, false);
+  Function* fun = Function::Create(funType, Function::ExternalLinkage,
+                                   "_Z4consP7_IRNodeS0_");
+  return pbuilder->CreateCall(fun, {oprnd1, oprnd2});
+}
+
 Value* Compiler::generate_code(ASTNode* node) {
   switch (node->type()) {
     case ASTNodeType::List: {
@@ -351,8 +371,20 @@ Value* Compiler::generate_code(ASTNode* node) {
         }
         if (fun == "car") {
           if (listnode->list.size() != 2)
-            throw std::runtime_error("car expects 2 arguments");
+            throw std::runtime_error("car expects 1 argument");
           return generate_car(listnode->list.back());
+        }
+        if (fun == "cdr") {
+          if (listnode->list.size() != 2)
+            throw std::runtime_error("cdr expects 1 argument");
+          return generate_cdr(listnode->list.back());
+        }
+        if (fun == "cons") {
+          if (listnode->list.size() != 3)
+            throw std::runtime_error("cons expects 2 arguments");
+          auto oprnd1 = *std::next(listnode->list.begin());
+          auto oprnd2 = listnode->list.back();
+          return generate_cons(oprnd1, oprnd2);
         }
       }
 
