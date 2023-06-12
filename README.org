@@ -62,7 +62,7 @@ Enter a number: 10
 | *       | yes      | yes     |
 | /       | yes      | yes     |
 | eq?     | yes      | yes     |
-| list?   | yes      | partial |
+| list?   | yes      | yes     |
 | int?    | yes      | yes     |
 | bool?   | yes      | yes     |
 | dec?    | yes      | yes     |
@@ -71,7 +71,7 @@ Enter a number: 10
 | progn   | yes      | yes     |
 | print   | yes      | partial |
 | println | yes      | partial |
-| quote   | yes      | no      |
+| quote   | yes      | yes     |
 | eval    | yes      | no      |
 | exit    | yes      | yes     |
 | readstr | yes      | no      |

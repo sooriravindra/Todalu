@@ -167,6 +167,57 @@ IRNode* arithmetic(char op, uint32_t num_args, ...) {
   return ret;
 }
 
+IRNode* deepCopy(IRNode* node) {
+  auto ret = allocNode();
+  switch (node->type) {
+    case ASTNodeType::Bool:
+    case ASTNodeType::Decimal:
+    case ASTNodeType::Integer:
+      ret->value = node->value;
+      ret->type = node->type;
+      return ret;
+    case ASTNodeType::Lambda:
+    case ASTNodeType::List: {
+      ret->type = node->type;
+      auto list = ((std::list<IRNode*>*)node->value);
+      auto retlist = ((std::list<IRNode*>*)allocList());
+      for (auto it = list->begin(); it != list->end(); it++) {
+        retlist->push_back(deepCopy(*it));
+      }
+      ret->value = (int64_t)retlist;
+      return ret;
+    }
+    case ASTNodeType::Symbol:
+    case ASTNodeType::String:;
+  }
+  throw std::runtime_error("Not implemented");
+}
+
+IRNode* car(IRNode* listnode) {
+  if (listnode->type != ASTNodeType::List)
+    throw std::runtime_error("car expects a list node");
+  return deepCopy(((std::list<IRNode*>*)listnode->value)->front());
+}
+
+IRNode* cdr(IRNode* listnode) {
+  if (listnode->type != ASTNodeType::List)
+    throw std::runtime_error("car expects a list node");
+  auto node = deepCopy(listnode);
+  auto list = ((std::list<IRNode*>*)node->value);
+  delete list->front();
+  list->pop_front();
+  return node;
+}
+
+IRNode* cons(IRNode* addNode, IRNode* listnode) {
+  if (listnode->type != ASTNodeType::List)
+    throw std::runtime_error("car expects a list node");
+  auto node = deepCopy(listnode);
+  auto list = ((std::list<IRNode*>*)node->value);
+  list->push_front(addNode);
+  return node;
+}
+
 void printNode(IRNode* node, char endchar) {
   std::string end = "";
   if (endchar) end += endchar;
