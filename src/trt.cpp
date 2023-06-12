@@ -167,25 +167,25 @@ IRNode* arithmetic(char op, uint32_t num_args, ...) {
   return ret;
 }
 
-void printNode(IRNode* node) {
+void printNode(IRNode* node, char endchar) {
+  std::string end = "";
+  if (endchar) end += endchar;
   as xformer;
   xformer.integer = node->value;
   if (node->type == ASTNodeType::Integer)
-    std::cout << xformer.integer;
+    std::cout << xformer.integer << end;
   else if (node->type == ASTNodeType::Decimal)
-    std::cout << xformer.decimal;
+    std::cout << xformer.decimal << end;
   else if (node->type == ASTNodeType::Bool)
-    std::cout << (xformer.decimal ? "#true" : "#false");
+    std::cout << (xformer.decimal ? "#true" : "#false") << end;
   else if (node->type == ASTNodeType::List) {
     auto list = xformer.list;
 
-    std::cout << "List size: " << list->size() << " ";
     std::cout << "( ";
     for (auto it = list->begin(); it != list->end(); it++) {
-      printNode(*it);
-      std::cout << " ";
+      printNode(*it, ' ');
     }
-    std::cout << " )";
+    std::cout << ")" << end;
   } else
     std::cerr << "Unsupported" << std::endl;
 }

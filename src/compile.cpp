@@ -134,13 +134,14 @@ Value* Compiler::generate_irnode(ASTNode* node) {
   return nodeobj;
 }
 
-Value* Compiler::generate_println(ASTNode* node) {
+Value* Compiler::generate_print(ASTNode* node, char end) {
   Value* operand = generate_code(node);
   FunctionType* operationType = FunctionType::get(
-      pbuilder->getVoidTy(), {PointerType::get(irnode, 0)}, false);
+      pbuilder->getVoidTy(),
+      {PointerType::get(irnode, 0), pbuilder->getInt8Ty()}, false);
   Function* operation = Function::Create(
-      operationType, Function::ExternalLinkage, "_Z9printNodeP7_IRNode");
-  pbuilder->CreateCall(operation, {operand});
+      operationType, Function::ExternalLinkage, "_Z9printNodeP7_IRNodec");
+  pbuilder->CreateCall(operation, {operand, pbuilder->getInt8(end)});
   return operand;
 }
 
@@ -262,7 +263,9 @@ Value* Compiler::generate_code(ASTNode* node) {
         auto fun = dynamic_cast<SymbolNode*>(listnode->list.front())->symbol;
         if (fun == "+" || fun == "-" || fun == "*" || fun == "/")
           return generate_arithmetic(fun[0], listnode);
-        if (fun == "println") return generate_println(listnode->list.back());
+        if (fun == "println")
+          return generate_print(listnode->list.back(), '\n');
+        if (fun == "print") return generate_print(listnode->list.back(), 0);
         if (fun == "def") {
           auto symnode = *std::next(listnode->list.begin());
           if (symnode->type() != ASTNodeType::Symbol)
@@ -350,6 +353,7 @@ Value* Compiler::generate_code(ASTNode* node) {
     case ASTNodeType::Decimal:
       return generate_irnode(node);
   }
+  throw std::runtime_error("Not implemented");
 }
 
 std::string Compiler::handle_line(std::string line) {

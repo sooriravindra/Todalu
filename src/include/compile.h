@@ -12,7 +12,7 @@ class Compiler : public Inpiler {
  private:
   llvm::Value* generate_code(ASTNode* node);
   llvm::Value* generate_arithmetic(char op, ListNode* listnode);
-  llvm::Value* generate_println(ASTNode* node);
+  llvm::Value* generate_print(ASTNode* node, char end);
   llvm::Value* generate_irnode(uint32_t type, int64_t value);
   llvm::Value* generate_irnode(uint32_t type, llvm::Value* value);
   llvm::Value* generate_irnode(ASTNode* node);
