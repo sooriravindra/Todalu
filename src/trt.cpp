@@ -14,16 +14,35 @@ typedef union _as {
 } as;
 
 enum ASTNodeType { Bool = 0, Integer, Decimal, Symbol, List, Lambda, String };
-IRNode* define(IRNode* symbol, IRNode* value) {
+IRNode* define(IRNode* symbol, IRNode* value, bool shouldPop) {
   if (symbol->type != ASTNodeType::Symbol)
     throw std::runtime_error("Non-symbol can't be defined");
   if (gEnv.find(symbol->value) != gEnv.end() && gEnv[symbol->value].size()) {
-    gEnv[symbol->value].pop_front();
+    if (shouldPop) gEnv[symbol->value].pop_front();
     gEnv[symbol->value].push_front(value);
   } else {
     gEnv[symbol->value].push_front(value);
   }
   return value;
+}
+
+bool evaluateCondition(IRNode* node) {
+  if (node->type == ASTNodeType::List) {
+    std::list<IRNode*>* plist = (std::list<IRNode*>*)node->value;
+    return (plist->size() != 0);
+  }
+  return (node->value != 0);
+}
+
+IRNode* undefine(IRNode* symbol) {
+  if (symbol->type != ASTNodeType::Symbol)
+    throw std::runtime_error("Non-symbol can't be undefined");
+  if (gEnv.find(symbol->value) != gEnv.end() && gEnv[symbol->value].size()) {
+    gEnv[symbol->value].pop_front();
+  } else {
+    throw std::runtime_error("Can't undefine a symbol that is not defined");
+  }
+  return symbol;
 }
 
 IRNode* retrieve(IRNode* symbol) {
@@ -194,11 +213,30 @@ IRNode* deepCopy(IRNode* node) {
   throw std::runtime_error("Not implemented");
 }
 
-IRNode* executeLambda(IRNode* lambda) {
+IRNode* throwException() {
+  throw std::runtime_error("There was an exception");
+  return nullptr;
+}
+
+IRNode* executeLambda(IRNode* lambda, int argc, ...) {
+  va_list args;
+  va_start(args, argc);
   if (lambda->type != ASTNodeType::Lambda)
     throw std::runtime_error("List head not a lambda");
   auto pls = (LambdaStruct*)lambda->value;
-  return pls->fun();
+  if (pls->argc != argc) throw std::runtime_error("Lambda argument mismatch");
+  // bind args
+  for (auto it = pls->arglist->begin(); it != pls->arglist->end(); it++) {
+    define(*it, va_arg(args, IRNode*), false);
+  }
+  va_end(args);
+  // call lambda body
+  auto ret = pls->fun();
+  // unbind args
+  for (auto it = pls->arglist->begin(); it != pls->arglist->end(); it++) {
+    undefine(*it);
+  }
+  return ret;
 }
 
 IRNode* createLambda(void* fun, int argc, ...) {

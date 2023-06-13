@@ -50,8 +50,7 @@ int main(int argc, char **argv) {
   // Compile or interpret filename given.
   Inpiler *engine = compile ? (Inpiler *)new Compiler(filename)
                             : (Inpiler *)new Interpreter();
-  if (!compile)  // TODO : Make this unconditional
-    engine->load_granthalaya();
+  engine->load_granthalaya();
   std::ifstream fs(filename);
   if (!fs.good()) {
     std::cerr << "Input file couldn't be read" << std::endl;

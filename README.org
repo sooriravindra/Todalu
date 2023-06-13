@@ -79,7 +79,7 @@ Enter a number: 10
 | car     | yes      | yes     |
 | cdr     | yes      | yes     |
 | cons    | yes      | yes     |
-| lambda  | yes      | no      |
+| lambda  | yes      | yes     |
 | def     | yes      | yes     |
 | if      | yes      | yes     |
 |---------+----------+---------|

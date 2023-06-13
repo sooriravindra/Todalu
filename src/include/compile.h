@@ -25,11 +25,13 @@ class Compiler : public Inpiler {
   llvm::Value* generate_car(ASTNode* node);
   llvm::Value* generate_cdr(ASTNode* node);
   llvm::Value* generate_cons(ASTNode* node, ASTNode* listnode);
-  llvm::Value* generate_lambda_call(llvm::Value* node);
+  llvm::Value* generate_lambda_call(ListNode* node);
   llvm::Value* generate_lambda(LambdaNode* node);
+  llvm::Value* generate_exception();
   std::string mfilename;
   llvm::Module* pmodule;
   llvm::IRBuilder<>* pbuilder;
+  llvm::Function* pfun;
   llvm::StructType* irnode;
   std::unique_ptr<llvm::Module> originalModule;
   llvm::Value* mret;

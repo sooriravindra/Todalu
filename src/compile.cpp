@@ -35,9 +35,9 @@ Compiler::Compiler(std::string s) : mfilename(s) {
   irnode = StructType::create(context, "IRNode");
   irnode->setBody(pbuilder->getInt8Ty(), pbuilder->getInt64Ty());
   FunctionType* mainFunType = FunctionType::get(pbuilder->getInt32Ty(), false);
-  mainFun = Function::Create(mainFunType, Function::ExternalLinkage, "main",
-                             *pmodule);
-  BasicBlock* mainEntry = BasicBlock::Create(context, "entry", mainFun);
+  pfun = Function::Create(mainFunType, Function::ExternalLinkage, "main",
+                          *pmodule);
+  BasicBlock* mainEntry = BasicBlock::Create(context, "entry", pfun);
   pbuilder->SetInsertPoint(mainEntry);
 }
 
@@ -80,32 +80,47 @@ Value* Compiler::generate_irnode(uint32_t type, int64_t value) {
 }
 
 Value* Compiler::generate_lambda(LambdaNode* node) {
+  // Lambda body as a function
   FunctionType* funType = FunctionType::get(PointerType::get(irnode, 0), false);
-  Function* fun =
-      Function::Create(funType, Function::ExternalLinkage, "", *pmodule);
-  BasicBlock* entryBB = BasicBlock::Create(context, "entry", fun);
-  auto saveBlock = pbuilder->GetInsertBlock();
-  auto saveIt = pbuilder->GetInsertPoint();
-  pbuilder->SetInsertPoint(entryBB);
-  pbuilder->CreateRet(generate_code(node->body));
-  pbuilder->SetInsertPoint(saveBlock, saveIt);
-  FunctionType* fun2Type = FunctionType::get(
-      PointerType::get(irnode, 0),
-      {Type::getInt8PtrTy(context), pbuilder->getInt32Ty()}, true);
-  Function* fun2 = Function::Create(fun2Type, Function::ExternalLinkage,
-                                    "_Z12createLambdaPviz");
+  Function* fun = Function::Create(funType, Function::ExternalLinkage,
+                                   "lambdaFunction", *pmodule);
+  // NOTE: We need to generate the args to create symbols before we generate
+  // lambda body. Else the body will try to retrieve values for symbols and fail
+  // because the convert_sym function only allows retrieving a value that has
+  // been defined
+
+  // First arg is function pointer to lambda body.
   std::vector<Value*> operands;
   operands.push_back(
       ConstantExpr::getBitCast(fun, Type::getInt8PtrTy(context)));
   if (node->arglist->type() != ASTNodeType::List)
     throw std::runtime_error("Lambda's arlist needs to be of type list");
   auto arglist = dynamic_cast<ListNode*>(node->arglist)->list;
+  // Second argument is number of var_args
   operands.push_back(pbuilder->getInt32(arglist.size()));
-  operands.push_back(
-      ConstantExpr::getBitCast(fun, Type::getInt8PtrTy(context)));
+  // Rest of the arguments are the symbols
   for (auto it = arglist.begin(); it != arglist.end(); it++) {
-    operands.push_back(generate_irnode(*it));
+    auto symInt = convert_sym(dynamic_cast<SymbolNode*>(*it), true);
+    operands.push_back(generate_irnode(ASTNodeType::Symbol, symInt));
   }
+
+  // Create lambda body
+  BasicBlock* entryBB = BasicBlock::Create(context, "entry", fun);
+  auto saveBlock = pbuilder->GetInsertBlock();
+  auto saveIt = pbuilder->GetInsertPoint();
+  auto parentFun = pfun;
+  pbuilder->SetInsertPoint(entryBB);
+  pfun = fun;
+  pbuilder->CreateRet(generate_code(node->body));
+  pfun = parentFun;
+  pbuilder->SetInsertPoint(saveBlock, saveIt);
+
+  // Invoke createLambda to create the lambda node
+  FunctionType* fun2Type = FunctionType::get(
+      PointerType::get(irnode, 0),
+      {Type::getInt8PtrTy(context), pbuilder->getInt32Ty()}, true);
+  Function* fun2 = Function::Create(fun2Type, Function::ExternalLinkage,
+                                    "_Z12createLambdaPviz");
   auto ret = pbuilder->CreateCall(fun2, operands);
   return ret;
 }
@@ -203,12 +218,15 @@ Value* Compiler::generate_define(SymbolNode* symnode, ASTNode* valuenode) {
   auto symoperand =
       generate_irnode(symnode->type(), convert_sym(symnode, true));
   auto valueoperand = generate_code(valuenode);
-  FunctionType* funType = FunctionType::get(
-      PointerType::get(irnode, 0),
-      {PointerType::get(irnode, 0), PointerType::get(irnode, 0)}, false);
+  FunctionType* funType =
+      FunctionType::get(PointerType::get(irnode, 0),
+                        {PointerType::get(irnode, 0),
+                         PointerType::get(irnode, 0), pbuilder->getInt1Ty()},
+                        false);
   Function* fun = Function::Create(funType, Function::ExternalLinkage,
-                                   "_Z6defineP7_IRNodeS0_");
-  return pbuilder->CreateCall(fun, {symoperand, valueoperand});
+                                   "_Z6defineP7_IRNodeS0_b");
+  return pbuilder->CreateCall(
+      fun, {symoperand, valueoperand, pbuilder->getIntN(1, 0)});
 }
 
 Value* Compiler::generate_isequal(ASTNode* oprnd1, ASTNode* oprnd2) {
@@ -244,12 +262,11 @@ Value* Compiler::generate_exit(ASTNode* node) {
 
 Value* Compiler::generate_if(ASTNode* cond, ASTNode* ifbdy, ASTNode* elsebdy) {
   // Read condition
-  auto condnode = generate_code(cond);
-  Value* valueidx[] = {pbuilder->getInt32(0), pbuilder->getInt32(1)};
-  auto fieldvalue =
-      pbuilder->CreateGEP(irnode, condnode, valueidx, "cond-value");
-  auto condvalue = pbuilder->CreateLoad(pbuilder->getInt64Ty(), fieldvalue);
-  auto condbool = pbuilder->CreateTrunc(condvalue, pbuilder->getInt1Ty());
+  FunctionType* funType = FunctionType::get(
+      pbuilder->getInt1Ty(), {PointerType::get(irnode, 0)}, false);
+  Function* fun = Function::Create(funType, Function::ExternalLinkage,
+                                   "_Z17evaluateConditionP7_IRNode");
+  auto condbool = pbuilder->CreateCall(fun, {generate_code(cond)});
 
   // Generate basic blocks
   auto ifBB = BasicBlock::Create(context);
@@ -258,23 +275,25 @@ Value* Compiler::generate_if(ASTNode* cond, ASTNode* ifbdy, ASTNode* elsebdy) {
 
   // if body
   pbuilder->CreateCondBr(condbool, ifBB, elseBB);
-  mainFun->getBasicBlockList().push_back(ifBB);
+  pfun->getBasicBlockList().push_back(ifBB);
   pbuilder->SetInsertPoint(ifBB);
   auto ifret = generate_code(ifbdy);
+  auto ifendBB = pbuilder->GetInsertBlock();
   pbuilder->CreateBr(mergeBB);
 
   // else body
-  mainFun->getBasicBlockList().push_back(elseBB);
+  pfun->getBasicBlockList().push_back(elseBB);
   pbuilder->SetInsertPoint(elseBB);
   auto elseret = generate_code(elsebdy);
+  auto elseendBB = pbuilder->GetInsertBlock();
   pbuilder->CreateBr(mergeBB);
 
   // Merge
-  mainFun->getBasicBlockList().push_back(mergeBB);
+  pfun->getBasicBlockList().push_back(mergeBB);
   pbuilder->SetInsertPoint(mergeBB);
   auto phinode = pbuilder->CreatePHI(PointerType::get(irnode, 0), 2);
-  phinode->addIncoming(ifret, ifBB);
-  phinode->addIncoming(elseret, elseBB);
+  phinode->addIncoming(ifret, ifendBB);
+  phinode->addIncoming(elseret, elseendBB);
   return phinode;
 }
 
@@ -298,12 +317,22 @@ Value* Compiler::generate_car(ASTNode* node) {
   return pbuilder->CreateCall(fun, {oprnd1});
 }
 
-Value* Compiler::generate_lambda_call(Value* node) {
+Value* Compiler::generate_lambda_call(ListNode* listnode) {
+  if (!listnode->list.size())
+    throw std::runtime_error("Error. Can't evaluate ()");
   FunctionType* operationType = FunctionType::get(
-      PointerType::get(irnode, 0), {PointerType::get(irnode, 0)}, false);
+      PointerType::get(irnode, 0),
+      {PointerType::get(irnode, 0), pbuilder->getInt32Ty()}, true);
   Function* operation = Function::Create(
-      operationType, Function::ExternalLinkage, "_Z13executeLambdaP7_IRNode");
-  return pbuilder->CreateCall(operation, node);
+      operationType, Function::ExternalLinkage, "_Z13executeLambdaP7_IRNodeiz");
+  std::vector<Value*> operands;
+  operands.push_back(generate_code(listnode->list.front()));
+  operands.push_back(pbuilder->getInt32(listnode->list.size() - 1));
+  for (auto it = std::next(listnode->list.begin()); it != listnode->list.end();
+       it++) {
+    operands.push_back(generate_code(*it));
+  }
+  return pbuilder->CreateCall(operation, operands);
 }
 
 Value* Compiler::generate_cdr(ASTNode* node) {
@@ -326,6 +355,13 @@ Value* Compiler::generate_cons(ASTNode* node, ASTNode* listnode) {
   return pbuilder->CreateCall(fun, {oprnd1, oprnd2});
 }
 
+Value* Compiler::generate_exception() {
+  FunctionType* funType = FunctionType::get(PointerType::get(irnode, 0), false);
+  Function* fun = Function::Create(funType, Function::ExternalLinkage,
+                                   "_Z14throwExceptionv");
+  return pbuilder->CreateCall(fun);
+}
+
 Value* Compiler::generate_code(ASTNode* node) {
   switch (node->type()) {
     case ASTNodeType::List: {
@@ -335,9 +371,12 @@ Value* Compiler::generate_code(ASTNode* node) {
         auto fun = dynamic_cast<SymbolNode*>(listnode->list.front())->symbol;
         if (fun == "+" || fun == "-" || fun == "*" || fun == "/")
           return generate_arithmetic(fun[0], listnode);
-        if (fun == "println")
-          return generate_print(listnode->list.back(), '\n');
-        if (fun == "print") return generate_print(listnode->list.back(), 0);
+        if (fun == "println" || fun == "print") {
+          if (listnode->list.size() != 2)
+            throw std::runtime_error("print expects one argument");
+          char end = (fun == "print"? 0 : '\n');
+          return generate_print(listnode->list.back(), end);
+        }
         if (fun == "def") {
           auto symnode = *std::next(listnode->list.begin());
           if (symnode->type() != ASTNodeType::Symbol)
@@ -446,10 +485,11 @@ Value* Compiler::generate_code(ASTNode* node) {
           LambdaNode tmp(arglist, body);
           return generate_irnode(&tmp);
         }
+        if (fun == "exception!") {
+          return generate_exception();
+        }
       }
-
-      auto lambdacandidate = generate_code(listnode->list.front());
-      return generate_lambda_call(lambdacandidate);
+      return generate_lambda_call(listnode);
     }
 
     case ASTNodeType::String:
