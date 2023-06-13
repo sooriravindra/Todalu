@@ -193,6 +193,13 @@ IRNode* deepCopy(IRNode* node) {
   throw std::runtime_error("Not implemented");
 }
 
+IRNode* executeLambda(IRNode* lambda) {
+  if (lambda->type != ASTNodeType::Lambda)
+    throw std::runtime_error("List head not a lambda");
+  IRNode* (*fun)() = (IRNode * (*)()) lambda->value;
+  return fun();
+}
+
 IRNode* car(IRNode* listnode) {
   if (listnode->type != ASTNodeType::List)
     throw std::runtime_error("car expects a list node");

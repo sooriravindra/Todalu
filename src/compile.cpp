@@ -128,6 +128,23 @@ Value* Compiler::generate_irnode(ASTNode* node) {
       }
       return ret;
     }
+    case ASTNodeType::Lambda: {
+      auto lambdanode = dynamic_cast<LambdaNode*>(node);
+      FunctionType* funType =
+          FunctionType::get(PointerType::get(irnode, 0), false);
+      Function* fun =
+          Function::Create(funType, Function::ExternalLinkage, "", *pmodule);
+      BasicBlock* entryBB = BasicBlock::Create(context, "entry", fun);
+      auto saveBlock = pbuilder->GetInsertBlock();
+      auto saveIt = pbuilder->GetInsertPoint();
+      pbuilder->SetInsertPoint(entryBB);
+      pbuilder->CreateRet(generate_code(lambdanode->body));
+      pbuilder->SetInsertPoint(saveBlock, saveIt);
+      auto ret = generate_irnode(
+          ASTNodeType::Lambda,
+          ConstantExpr::getBitCast(fun, Type::getInt8PtrTy(context)));
+      return ret;
+    }
     default:
       throw std::runtime_error("Not implemented at irnode generation");
   }
@@ -386,11 +403,33 @@ Value* Compiler::generate_code(ASTNode* node) {
           auto oprnd2 = listnode->list.back();
           return generate_cons(oprnd1, oprnd2);
         }
+        if (fun == "lambda") {
+          if (listnode->list.size() != 3)
+            throw std::runtime_error("lambda expects an arg list and a body");
+          auto arglist = *std::next(listnode->list.begin());
+          auto body = listnode->list.back();
+
+          if (arglist->type() != ASTNodeType::List)
+            throw std::runtime_error("arglist should be a list");
+          auto l = dynamic_cast<ListNode*>(arglist)->list.begin();
+          while (l != dynamic_cast<ListNode*>(arglist)->list.end()) {
+            if ((*l)->type() != ASTNodeType::Symbol)
+              throw std::runtime_error("lambda argument list has non-symbol");
+            l++;
+          }
+          LambdaNode tmp(arglist, body);
+          return generate_irnode(&tmp);
+        }
       }
 
-      throw std::runtime_error("Not implemented");
+      auto lambdacandidate = generate_code(listnode->list.front());
+      FunctionType* operationType = FunctionType::get(
+          PointerType::get(irnode, 0), {PointerType::get(irnode, 0)}, false);
+      Function* operation =
+          Function::Create(operationType, Function::ExternalLinkage,
+                           "_Z13executeLambdaP7_IRNode");
+      return pbuilder->CreateCall(operation, lambdacandidate);
     }
-    case ASTNodeType::Lambda:
     case ASTNodeType::String:
       throw std::runtime_error("Not implemented");
     case ASTNodeType::Symbol:
