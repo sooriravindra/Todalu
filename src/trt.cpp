@@ -153,6 +153,7 @@ IRNode* arithmetic(char op, uint32_t num_args, ...) {
       acc = operation(acc, arg->value, op);
     }
   }
+  va_end(args);
 
   if (not all_int) {
     auto ret = new IRNode();
@@ -196,8 +197,26 @@ IRNode* deepCopy(IRNode* node) {
 IRNode* executeLambda(IRNode* lambda) {
   if (lambda->type != ASTNodeType::Lambda)
     throw std::runtime_error("List head not a lambda");
-  IRNode* (*fun)() = (IRNode * (*)()) lambda->value;
-  return fun();
+  auto pls = (LambdaStruct*)lambda->value;
+  return pls->fun();
+}
+
+IRNode* createLambda(void* fun, int argc, ...) {
+  va_list args;
+  va_start(args, argc);
+  auto node = allocNode();
+  node->type = ASTNodeType::Lambda;
+  auto pls = new LambdaStruct();
+  pls->fun = (IRNode * (*)()) fun;
+  pls->argc = argc;
+  pls->arglist = new std::list<IRNode*>();
+  for (int i = 0; i < argc; i++) {
+    auto sym = va_arg(args, IRNode*);
+    pls->arglist->push_back(sym);
+  }
+  va_end(args);
+  node->value = (int64_t)pls;
+  return node;
 }
 
 IRNode* car(IRNode* listnode) {

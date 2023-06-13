@@ -79,6 +79,37 @@ Value* Compiler::generate_irnode(uint32_t type, int64_t value) {
   return generate_irnode(type, valueV);
 }
 
+Value* Compiler::generate_lambda(LambdaNode* node) {
+  FunctionType* funType = FunctionType::get(PointerType::get(irnode, 0), false);
+  Function* fun =
+      Function::Create(funType, Function::ExternalLinkage, "", *pmodule);
+  BasicBlock* entryBB = BasicBlock::Create(context, "entry", fun);
+  auto saveBlock = pbuilder->GetInsertBlock();
+  auto saveIt = pbuilder->GetInsertPoint();
+  pbuilder->SetInsertPoint(entryBB);
+  pbuilder->CreateRet(generate_code(node->body));
+  pbuilder->SetInsertPoint(saveBlock, saveIt);
+  FunctionType* fun2Type = FunctionType::get(
+      PointerType::get(irnode, 0),
+      {Type::getInt8PtrTy(context), pbuilder->getInt32Ty()}, true);
+  Function* fun2 = Function::Create(fun2Type, Function::ExternalLinkage,
+                                    "_Z12createLambdaPviz");
+  std::vector<Value*> operands;
+  operands.push_back(
+      ConstantExpr::getBitCast(fun, Type::getInt8PtrTy(context)));
+  if (node->arglist->type() != ASTNodeType::List)
+    throw std::runtime_error("Lambda's arlist needs to be of type list");
+  auto arglist = dynamic_cast<ListNode*>(node->arglist)->list;
+  operands.push_back(pbuilder->getInt32(arglist.size()));
+  operands.push_back(
+      ConstantExpr::getBitCast(fun, Type::getInt8PtrTy(context)));
+  for (auto it = arglist.begin(); it != arglist.end(); it++) {
+    operands.push_back(generate_irnode(*it));
+  }
+  auto ret = pbuilder->CreateCall(fun2, operands);
+  return ret;
+}
+
 Value* Compiler::generate_irnode(ASTNode* node) {
   as xformer;
   Value* nodeobj;
@@ -130,20 +161,7 @@ Value* Compiler::generate_irnode(ASTNode* node) {
     }
     case ASTNodeType::Lambda: {
       auto lambdanode = dynamic_cast<LambdaNode*>(node);
-      FunctionType* funType =
-          FunctionType::get(PointerType::get(irnode, 0), false);
-      Function* fun =
-          Function::Create(funType, Function::ExternalLinkage, "", *pmodule);
-      BasicBlock* entryBB = BasicBlock::Create(context, "entry", fun);
-      auto saveBlock = pbuilder->GetInsertBlock();
-      auto saveIt = pbuilder->GetInsertPoint();
-      pbuilder->SetInsertPoint(entryBB);
-      pbuilder->CreateRet(generate_code(lambdanode->body));
-      pbuilder->SetInsertPoint(saveBlock, saveIt);
-      auto ret = generate_irnode(
-          ASTNodeType::Lambda,
-          ConstantExpr::getBitCast(fun, Type::getInt8PtrTy(context)));
-      return ret;
+      return generate_lambda(lambdanode);
     }
     default:
       throw std::runtime_error("Not implemented at irnode generation");
@@ -278,6 +296,14 @@ Value* Compiler::generate_car(ASTNode* node) {
   Function* fun =
       Function::Create(funType, Function::ExternalLinkage, "_Z3carP7_IRNode");
   return pbuilder->CreateCall(fun, {oprnd1});
+}
+
+Value* Compiler::generate_lambda_call(Value* node) {
+  FunctionType* operationType = FunctionType::get(
+      PointerType::get(irnode, 0), {PointerType::get(irnode, 0)}, false);
+  Function* operation = Function::Create(
+      operationType, Function::ExternalLinkage, "_Z13executeLambdaP7_IRNode");
+  return pbuilder->CreateCall(operation, node);
 }
 
 Value* Compiler::generate_cdr(ASTNode* node) {
@@ -423,13 +449,9 @@ Value* Compiler::generate_code(ASTNode* node) {
       }
 
       auto lambdacandidate = generate_code(listnode->list.front());
-      FunctionType* operationType = FunctionType::get(
-          PointerType::get(irnode, 0), {PointerType::get(irnode, 0)}, false);
-      Function* operation =
-          Function::Create(operationType, Function::ExternalLinkage,
-                           "_Z13executeLambdaP7_IRNode");
-      return pbuilder->CreateCall(operation, lambdacandidate);
+      return generate_lambda_call(lambdacandidate);
     }
+
     case ASTNodeType::String:
       throw std::runtime_error("Not implemented");
     case ASTNodeType::Symbol:
@@ -437,6 +459,7 @@ Value* Compiler::generate_code(ASTNode* node) {
     case ASTNodeType::Integer:
     case ASTNodeType::Decimal:
       return generate_irnode(node);
+    default:;
   }
   throw std::runtime_error("Not implemented");
 }
