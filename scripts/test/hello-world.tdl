@@ -1,5 +1,5 @@
 #!/usr/bin/env todalu
 # ^ May have to fix the path
-(def is-even (lambda x (eq? (% x 2) 0)))
+(def is-even (lambda (x) (eq? (% x 2) 0)))
 (if (is-even 30) (println "Hello World!") (println "Bye World!"))
 

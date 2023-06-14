@@ -387,7 +387,7 @@ Value* Compiler::generate_code(ASTNode* node) {
         if (fun == "println" || fun == "print") {
           if (listnode->list.size() != 2)
             throw std::runtime_error("print expects one argument");
-          char end = (fun == "print"? 0 : '\n');
+          char end = (fun == "print" ? 0 : '\n');
           return generate_print(listnode->list.back(), end);
         }
         if (fun == "def") {

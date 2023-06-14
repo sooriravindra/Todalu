@@ -54,6 +54,7 @@ int main(int argc, char **argv) {
   std::ifstream fs(filename);
   if (!fs.good()) {
     std::cerr << "Input file couldn't be read" << std::endl;
+    exit(1);
   }
   std::string line;
   std::string wholeline = "";

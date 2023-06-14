@@ -208,8 +208,12 @@ IRNode* deepCopy(IRNode* node) {
       ret->value = (int64_t)retlist;
       return ret;
     }
-    case ASTNodeType::Symbol:
-    case ASTNodeType::String:;
+    case ASTNodeType::String:
+      // HACK Strings can't be altered. So faking a copy.
+      ret->type = node->type;
+      ret->value = node->value;
+      return ret;
+    case ASTNodeType::Symbol:;
   }
   throw std::runtime_error("Not implemented");
 }
