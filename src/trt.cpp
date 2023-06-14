@@ -11,6 +11,7 @@ typedef union _as {
   int64_t integer;
   double decimal;
   std::list<IRNode*>* list;
+  char* str;
 } as;
 
 enum ASTNodeType { Bool = 0, Integer, Decimal, Symbol, List, Lambda, String };
@@ -287,20 +288,31 @@ void printNode(IRNode* node, char endchar) {
   if (endchar) end += endchar;
   as xformer;
   xformer.integer = node->value;
-  if (node->type == ASTNodeType::Integer)
-    std::cout << xformer.integer << end;
-  else if (node->type == ASTNodeType::Decimal)
-    std::cout << xformer.decimal << end;
-  else if (node->type == ASTNodeType::Bool)
-    std::cout << (xformer.decimal ? "#true" : "#false") << end;
-  else if (node->type == ASTNodeType::List) {
-    auto list = xformer.list;
-
-    std::cout << "( ";
-    for (auto it = list->begin(); it != list->end(); it++) {
-      printNode(*it, ' ');
+  switch (node->type) {
+    case ASTNodeType::Integer:
+      std::cout << xformer.integer << end;
+      break;
+    case ASTNodeType::Decimal:
+      std::cout << xformer.decimal << end;
+      break;
+    case ASTNodeType::Bool:
+      std::cout << (xformer.decimal ? "#true" : "#false") << end;
+      break;
+    case ASTNodeType::List: {
+      auto list = xformer.list;
+      std::cout << "( ";
+      for (auto it = list->begin(); it != list->end(); it++) {
+        printNode(*it, ' ');
+      }
+      std::cout << ")" << end;
+      break;
     }
-    std::cout << ")" << end;
-  } else
-    std::cerr << "Unsupported" << std::endl;
+    case ASTNodeType::String:
+      std::cout << xformer.str << end;
+      break;
+    case ASTNodeType::Lambda:
+      std::cout << "<lambda=" << xformer.decimal << ">" << end;
+    default:
+      std::cerr << "Unsupported" << std::endl;
+  }
 }

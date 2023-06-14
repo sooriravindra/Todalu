@@ -28,6 +28,7 @@ class Compiler : public Inpiler {
   llvm::Value* generate_lambda_call(ListNode* node);
   llvm::Value* generate_lambda(LambdaNode* node);
   llvm::Value* generate_exception();
+  llvm::Value* generate_string(StringNode* node);
   std::string mfilename;
   llvm::Module* pmodule;
   llvm::IRBuilder<>* pbuilder;

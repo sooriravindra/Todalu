@@ -79,6 +79,17 @@ Value* Compiler::generate_irnode(uint32_t type, int64_t value) {
   return generate_irnode(type, valueV);
 }
 
+Value* Compiler::generate_string(StringNode* node) {
+  Constant* strConstant = ConstantDataArray::getString(context, node->value);
+  GlobalVariable* strGlobal =
+      new GlobalVariable(*pmodule, strConstant->getType(), true,
+                         GlobalValue::PrivateLinkage, strConstant);
+  Value* strPtr = pbuilder->CreateInBoundsGEP(
+      strGlobal->getValueType(), strGlobal,
+      {pbuilder->getInt32(0), pbuilder->getInt32(0)});
+  return generate_irnode(ASTNodeType::String, strPtr);
+}
+
 Value* Compiler::generate_lambda(LambdaNode* node) {
   // Lambda body as a function
   FunctionType* funType = FunctionType::get(PointerType::get(irnode, 0), false);
@@ -174,10 +185,12 @@ Value* Compiler::generate_irnode(ASTNode* node) {
       }
       return ret;
     }
-    case ASTNodeType::Lambda: {
-      auto lambdanode = dynamic_cast<LambdaNode*>(node);
-      return generate_lambda(lambdanode);
+    case ASTNodeType::Lambda:
+      return generate_lambda(dynamic_cast<LambdaNode*>(node));
+    case ASTNodeType::String: {
+      return generate_string(dynamic_cast<StringNode*>(node));
     }
+
     default:
       throw std::runtime_error("Not implemented at irnode generation");
   }
@@ -493,15 +506,14 @@ Value* Compiler::generate_code(ASTNode* node) {
     }
 
     case ASTNodeType::String:
-      throw std::runtime_error("Not implemented");
     case ASTNodeType::Symbol:
     case ASTNodeType::Bool:
     case ASTNodeType::Integer:
     case ASTNodeType::Decimal:
       return generate_irnode(node);
-    default:;
+    default:
+      throw std::runtime_error("Not implemented");
   }
-  throw std::runtime_error("Not implemented");
 }
 
 std::string Compiler::handle_line(std::string line) {

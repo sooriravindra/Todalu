@@ -1,6 +1,6 @@
 #!/usr/bin/env todalu
 # ^ May have to fix the path
-(def fzbz (lambda y
+(def fzbz (lambda (y)
             (if (eq? (% y 15) 0)
                 (println "FizzBuzz")
                 (if (eq? (% y 5) 0)
